@@ -34,5 +34,12 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
           fetch-depth: 0
 
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
       - name: Tests
         run: bun test --coverage
