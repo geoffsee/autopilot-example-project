@@ -47,7 +47,6 @@ jobs:
 
       - uses: geoffsee/caretta-autopilot-action@main
         with:
-          mode: execute
           caretta-version: latest
           context: ${{ inputs.context || format('Autopilot triggered by {0}', github.event_name) }}
           dry-run: ${{ inputs.dry_run || 'false' }}
