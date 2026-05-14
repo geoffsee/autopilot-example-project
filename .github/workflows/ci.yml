@@ -1,8 +1,11 @@
 name: CI
 
-# Attaches a `Test` check to agent PR head SHAs. The Autopilot orchestrator
-# dispatches this workflow per agent PR (`agent/issue-*`) that lacks a Test
-# check, then gates the tracker/factory follow-up on these results.
+# Placeholder Test check the autopilot gates agent PRs on.
+#
+# Replace the contents of the `Test` job with your real test command.
+# The autopilot scans for a check named `Test` on each agent PR's head SHA
+# and dispatches this workflow when one is missing; what runs inside is
+# entirely up to the consumer repo.
 
 on:
   push:
@@ -31,15 +34,5 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
           fetch-depth: 0
 
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Install
-        run: bun install --frozen-lockfile
-
-      - name: Typecheck
-        run: bun run typecheck
-
-      - name: Test
-        run: bun test
+      - name: Run your tests here
+        run: echo "Replace this step with your real test command."
