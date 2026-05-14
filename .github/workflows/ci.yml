@@ -1,0 +1,45 @@
+name: CI
+
+# Attaches a `Test` check to agent PR head SHAs. The Autopilot orchestrator
+# dispatches this workflow per agent PR (`agent/issue-*`) that lacks a Test
+# check, then gates the tracker/factory follow-up on these results.
+
+on:
+  push:
+    branches:
+      - main
+      - "agent/issue-*"
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Ref to test (branch name or SHA)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  checks: write
+
+jobs:
+  Test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Test
+        run: bun test
