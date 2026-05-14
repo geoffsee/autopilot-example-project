@@ -34,5 +34,5 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
           fetch-depth: 0
 
-      - name: Run your tests here
-        run: echo "Replace this step with your real test command."
+      - name: Tests
+        run: bun test --coverage
