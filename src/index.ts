@@ -2,6 +2,7 @@ import { serve } from "bun";
 import index from "./index.html";
 import { createCounterDb, getCount, handleCounterPost } from "./counter";
 import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
+import { config } from "./config";
 
 const db = createCounterDb();
 setupActivityTable(db);
@@ -66,7 +67,7 @@ export function createServer(port?: number) {
       },
     },
 
-    development: process.env.NODE_ENV !== "production" && {
+    development: config.isDevelopment && {
       hmr: true,
       console: true,
     },
