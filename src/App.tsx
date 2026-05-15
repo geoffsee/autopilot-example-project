@@ -10,8 +10,12 @@ function LiveCounter() {
 
   useEffect(() => {
     fetch("/api/counter")
-      .then((r) => r.json())
-      .then((data: { count: number }) => setCount(data.count));
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((data: { count: number }) => setCount(data.count))
+      .catch((err) => console.error("Failed to fetch counter", err));
   }, []);
 
   useEffect(() => {
@@ -19,9 +23,12 @@ function LiveCounter() {
     const ws = new WebSocket(`${proto}://${location.host}/ws`);
 
     ws.onopen = () => setConnected(true);
+    ws.onerror = (e) => console.error("WebSocket error", e);
     ws.onmessage = (event) => {
-      const msg = JSON.parse(event.data) as { type: string; count: number };
-      if (msg.type === "counter") setCount(msg.count);
+      try {
+        const msg = JSON.parse(event.data as string) as { type: string; count: number };
+        if (msg.type === "counter") setCount(msg.count);
+      } catch { /* ignore malformed frames */ }
     };
     ws.onclose = () => setConnected(false);
 
@@ -29,7 +36,9 @@ function LiveCounter() {
   }, []);
 
   const handleIncrement = () => {
-    fetch("/api/counter", { method: "POST" });
+    fetch("/api/counter", { method: "POST" }).catch((err) =>
+      console.error("Increment failed", err)
+    );
   };
 
   return (

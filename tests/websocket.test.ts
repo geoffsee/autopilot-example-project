@@ -60,8 +60,9 @@ test("WebSocket receives counter update on POST /api/counter", async () => {
     ws.onerror = () => reject(new Error("WebSocket connection failed"));
   });
 
-  const msgPromise = new Promise<{ type: string; count: number }>((resolve) => {
-    ws.onmessage = (e) => resolve(JSON.parse(e.data as string));
+  const msgPromise = new Promise<{ type: string; count: number }>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error("timed out waiting for WS message")), 3000);
+    ws.onmessage = (e) => { clearTimeout(t); resolve(JSON.parse(e.data as string)); };
   });
 
   const postRes = await fetch(
