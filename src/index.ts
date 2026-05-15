@@ -1,5 +1,6 @@
 import { serve } from "bun";
 import index from "./index.html";
+import { handleClaude } from "./claude";
 
 const server = serve({
   routes: {
@@ -26,6 +27,10 @@ const server = serve({
       return Response.json({
         message: `Hello, ${name}!`,
       });
+    },
+
+    "/api/claude": {
+      POST: handleClaude,
     },
   },
 
