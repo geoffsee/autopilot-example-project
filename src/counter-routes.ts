@@ -7,7 +7,7 @@ export function makeCounterRoutes(db: Database) {
     GET(_req: Request) {
       return Response.json({ count: getCounterValue(db) });
     },
-    async POST(req: Request, server: Server) {
+    async POST(req: Request, server: Server<unknown>) {
       const { response, count } = await handleCounterPost(req, db);
       if (count !== undefined) {
         server.publish(

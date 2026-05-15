@@ -57,9 +57,8 @@ beforeAll(() => {
           return Response.json({ count: 0 });
         },
         async POST(req, server) {
-          const response = await handleCounterPost(req, db);
-          if (response.ok) {
-            const { count } = await response.clone().json() as { count: number };
+          const { response, count } = await handleCounterPost(req, db);
+          if (response.ok && typeof count === "number") {
             server.publish("counter", JSON.stringify({ type: "counter", count }));
             const entry = logActivity(db, "counter.increment");
             server.publish("activity", JSON.stringify({ type: "activity", entry }));
