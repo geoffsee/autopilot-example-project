@@ -20,6 +20,11 @@ function isValidBody(b: unknown): b is { prompt: string } {
 }
 
 export async function handleClaude(req: Request): Promise<Response> {
+  const token = req.headers.get("Authorization");
+  if (token !== `Bearer ${process.env.API_SECRET}`) {
+    return Response.json({ error: "unauthorized" }, { status: 401 });
+  }
+
   let body: unknown;
   try {
     body = await req.json();
@@ -34,13 +39,7 @@ export async function handleClaude(req: Request): Promise<Response> {
   const stream = getClient().messages.stream({
     model: "claude-sonnet-4-6",
     max_tokens: 1024,
-    system: [
-      {
-        type: "text",
-        text: "You are a helpful assistant.",
-        cache_control: { type: "ephemeral" },
-      },
-    ],
+    system: "You are a helpful assistant.",
     messages: [{ role: "user", content: body.prompt }],
   });
 
