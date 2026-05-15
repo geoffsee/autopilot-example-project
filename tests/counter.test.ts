@@ -1,68 +1,145 @@
-import { expect, test, beforeAll, afterAll } from "bun:test";
-import { serve } from "bun";
-import { createCounterDb, getCount, increment } from "../src/counter";
-import { makeCounterRoutes } from "../src/counter-routes";
+import { test, expect, beforeEach, afterEach } from "bun:test";
+import { Database } from "bun:sqlite";
+import { setupCounter, getCounterValue, handleCounterPost } from "../src/counter";
 
-// Unit tests for counter DB functions
-test("getCount returns 0 on fresh in-memory DB", () => {
-  const db = createCounterDb(":memory:");
-  expect(getCount(db)).toBe(0);
-  db.close();
-});
+let db: Database;
 
-test("increment increases count by 1 each time", () => {
-  const db = createCounterDb(":memory:");
-  expect(increment(db)).toBe(1);
-  expect(increment(db)).toBe(2);
-  expect(increment(db)).toBe(3);
-  db.close();
-});
-
-// HTTP integration tests
-let baseUrl: string;
-let server: ReturnType<typeof serve>;
-
-beforeAll(() => {
-  const db = createCounterDb(":memory:");
-
-  server = serve({
-    port: 0,
-    routes: {
-      "/api/counter": makeCounterRoutes(db),
-    },
+function makePostRequest(body?: unknown, contentType = "application/json"): Request {
+  if (body === undefined) {
+    return new Request("http://localhost/api/counter", { method: "POST" });
+  }
+  return new Request("http://localhost/api/counter", {
+    method: "POST",
+    headers: { "content-type": contentType },
+    body: typeof body === "string" ? body : JSON.stringify(body),
   });
+}
 
-  baseUrl = `http://localhost:${server.port}`;
+beforeEach(() => {
+  db = new Database(":memory:");
+  setupCounter(db);
 });
 
-afterAll(() => {
-  server.stop();
+afterEach(() => {
+  db.close();
 });
 
-test("GET /api/counter returns { count: 0 } initially", async () => {
-  const res = await fetch(`${baseUrl}/api/counter`);
+// --- GET helper ---
+
+test("GET returns initial count of 0", () => {
+  expect(getCounterValue(db)).toBe(0);
+});
+
+// --- Happy paths ---
+
+test("POST with no body increments by 1", async () => {
+  const res = await handleCounterPost(makePostRequest(), db);
   expect(res.status).toBe(200);
-  const body = await res.json();
-  expect(body).toEqual({ count: 0 });
+  const json = await res.json() as { count: number };
+  expect(json.count).toBe(1);
 });
 
-test("POST /api/counter increments count", async () => {
-  const res = await fetch(`${baseUrl}/api/counter`, { method: "POST" });
+test("POST with empty body increments by 1", async () => {
+  const res = await handleCounterPost(
+    new Request("http://localhost/api/counter", { method: "POST", body: "" }),
+    db
+  );
   expect(res.status).toBe(200);
-  const body = await res.json();
-  expect(body).toEqual({ count: 1 });
+  const json = await res.json() as { count: number };
+  expect(json.count).toBe(1);
 });
 
-test("GET /api/counter reflects incremented count", async () => {
-  const res = await fetch(`${baseUrl}/api/counter`);
+test("POST with {} increments by 1 (default)", async () => {
+  const res = await handleCounterPost(makePostRequest({}), db);
   expect(res.status).toBe(200);
-  const body = await res.json();
-  expect(body).toEqual({ count: 1 });
+  const json = await res.json() as { count: number };
+  expect(json.count).toBe(1);
 });
 
-test("POST /api/counter increments again", async () => {
-  const res = await fetch(`${baseUrl}/api/counter`, { method: "POST" });
+test("POST with { increment: 5 } increments by 5", async () => {
+  const res = await handleCounterPost(makePostRequest({ increment: 5 }), db);
   expect(res.status).toBe(200);
-  const body = await res.json();
-  expect(body).toEqual({ count: 2 });
+  const json = await res.json() as { count: number };
+  expect(json.count).toBe(5);
+});
+
+test("POST with { increment: 0 } is valid (no-op increment)", async () => {
+  const res = await handleCounterPost(makePostRequest({ increment: 0 }), db);
+  expect(res.status).toBe(200);
+  const json = await res.json() as { count: number };
+  expect(json.count).toBe(0);
+});
+
+// --- 400 paths ---
+
+test("POST with non-JSON content-type and body returns 400", async () => {
+  const res = await handleCounterPost(
+    new Request("http://localhost/api/counter", {
+      method: "POST",
+      headers: { "content-type": "text/plain" },
+      body: "not json",
+    }),
+    db
+  );
+  expect(res.status).toBe(400);
+  const json = await res.json() as { error: string };
+  expect(typeof json.error).toBe("string");
+});
+
+test("POST with malformed JSON returns 400", async () => {
+  const res = await handleCounterPost(
+    new Request("http://localhost/api/counter", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{bad json}",
+    }),
+    db
+  );
+  expect(res.status).toBe(400);
+  const json = await res.json() as { error: string };
+  expect(typeof json.error).toBe("string");
+});
+
+test("POST with JSON array returns 400", async () => {
+  const res = await handleCounterPost(makePostRequest([1, 2, 3]), db);
+  expect(res.status).toBe(400);
+});
+
+test("POST with JSON string returns 400", async () => {
+  const res = await handleCounterPost(
+    new Request("http://localhost/api/counter", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: '"just a string"',
+    }),
+    db
+  );
+  expect(res.status).toBe(400);
+});
+
+test("POST with negative increment returns 400", async () => {
+  const res = await handleCounterPost(makePostRequest({ increment: -1 }), db);
+  expect(res.status).toBe(400);
+  const json = await res.json() as { error: string };
+  expect(typeof json.error).toBe("string");
+});
+
+test("POST with float increment returns 400", async () => {
+  const res = await handleCounterPost(makePostRequest({ increment: 1.5 }), db);
+  expect(res.status).toBe(400);
+  const json = await res.json() as { error: string };
+  expect(typeof json.error).toBe("string");
+});
+
+test("POST with string increment returns 400", async () => {
+  const res = await handleCounterPost(makePostRequest({ increment: "5" }), db);
+  expect(res.status).toBe(400);
+  const json = await res.json() as { error: string };
+  expect(typeof json.error).toBe("string");
+});
+
+test("successive increments accumulate", async () => {
+  await handleCounterPost(makePostRequest({ increment: 3 }), db);
+  await handleCounterPost(makePostRequest({ increment: 7 }), db);
+  expect(getCounterValue(db)).toBe(10);
 });
