@@ -3,6 +3,7 @@ import index from "./index.html";
 import { createCounterDb, getCount, handleCounterPost } from "./counter";
 import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
 import { logger } from "./logger";
+import { initTracer, withSpan } from "./tracer";
 
 const db = createCounterDb();
 setupActivityTable(db);
@@ -15,35 +16,47 @@ export function createServer(port?: number) {
 
       "/api/hello": {
         async GET(_req) {
-          return Response.json({ message: "Hello, world!", method: "GET" });
+          return withSpan("GET /api/hello", async () =>
+            Response.json({ message: "Hello, world!", method: "GET" })
+          );
         },
         async PUT(_req) {
-          return Response.json({ message: "Hello, world!", method: "PUT" });
+          return withSpan("PUT /api/hello", async () =>
+            Response.json({ message: "Hello, world!", method: "PUT" })
+          );
         },
       },
 
       "/api/hello/:name": async (req) => {
-        return Response.json({ message: `Hello, ${req.params.name}!` });
+        return withSpan("GET /api/hello/:name", async () =>
+          Response.json({ message: `Hello, ${req.params.name}!` })
+        );
       },
 
       "/api/counter": {
-        GET(_req) {
-          return Response.json({ count: getCount(db) });
+        async GET(_req) {
+          return withSpan("GET /api/counter", async () =>
+            Response.json({ count: getCount(db) })
+          );
         },
         async POST(req, server) {
-          const { response, count } = await handleCounterPost(req, db);
-          if (response.ok && typeof count === "number") {
-            server.publish("counter", JSON.stringify({ type: "counter", count }));
-            const entry = logActivity(db, "counter.increment");
-            server.publish("activity", JSON.stringify({ type: "activity", entry }));
-          }
-          return response;
+          return withSpan("POST /api/counter", async () => {
+            const { response, count } = await handleCounterPost(req, db);
+            if (response.ok && typeof count === "number") {
+              server.publish("counter", JSON.stringify({ type: "counter", count }));
+              const entry = logActivity(db, "counter.increment");
+              server.publish("activity", JSON.stringify({ type: "activity", entry }));
+            }
+            return response;
+          });
         },
       },
 
       "/api/activity": {
-        GET(_req) {
-          return Response.json({ entries: getRecentActivity(db) });
+        async GET(_req) {
+          return withSpan("GET /api/activity", async () =>
+            Response.json({ entries: getRecentActivity(db) })
+          );
         },
       },
 
@@ -54,16 +67,20 @@ export function createServer(port?: number) {
     },
 
     websocket: {
-      open(ws) {
-        ws.subscribe("counter");
-        ws.subscribe("activity");
-        const entries = getRecentActivity(db);
-        ws.send(JSON.stringify({ type: "activity_history", entries }));
+      async open(ws) {
+        await withSpan("ws.open", async () => {
+          ws.subscribe("counter");
+          ws.subscribe("activity");
+          const entries = getRecentActivity(db);
+          ws.send(JSON.stringify({ type: "activity_history", entries }));
+        });
       },
       message(_ws, _msg) {},
-      close(ws) {
-        ws.unsubscribe("counter");
-        ws.unsubscribe("activity");
+      async close(ws) {
+        await withSpan("ws.close", async () => {
+          ws.unsubscribe("counter");
+          ws.unsubscribe("activity");
+        });
       },
     },
 
@@ -75,6 +92,7 @@ export function createServer(port?: number) {
 }
 
 if (import.meta.main) {
+  initTracer();
   const server = createServer();
   logger.info("server started", { url: server.url.toString() });
 }
