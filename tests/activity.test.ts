@@ -79,9 +79,7 @@ beforeAll(() => {
         ws.subscribe("counter");
         ws.subscribe("activity");
         const entries = getRecentActivity(db);
-        for (const entry of [...entries].reverse()) {
-          ws.send(JSON.stringify({ type: "activity", entry }));
-        }
+        ws.send(JSON.stringify({ type: "activity_history", entries: [...entries].reverse() }));
       },
       message(_ws, _msg) {},
       close(ws) {
@@ -134,8 +132,13 @@ test("WebSocket receives activity message on POST /api/counter", async () => {
     ws.onerror = () => reject(new Error("WebSocket connection failed"));
   });
 
-  // Drain any initial activity messages sent on open
-  await new Promise<void>((resolve) => setTimeout(resolve, 50));
+  // Wait for the activity_history burst sent on connect before listening for live events
+  await new Promise<void>((resolve) => {
+    ws.onmessage = (e) => {
+      const msg = JSON.parse(e.data as string);
+      if (msg.type === "activity_history") resolve();
+    };
+  });
 
   const activityPromise = new Promise<{ type: string; entry: { action: string; timestamp: string } }>((resolve) => {
     ws.onmessage = (e) => {
@@ -169,21 +172,15 @@ test("WebSocket sends existing activity entries on connect", async () => {
     ws.onerror = () => reject(new Error("WebSocket connection failed"));
   });
 
-  const received: { type: string; entry: { action: string } }[] = [];
-  await new Promise<void>((resolve) => {
-    const timer = setTimeout(resolve, 200);
+  const historyMsg = await new Promise<{ type: string; entries: { action: string }[] }>((resolve) => {
     ws.onmessage = (e) => {
       const msg = JSON.parse(e.data as string);
-      if (msg.type === "activity") received.push(msg);
-      if (received.length >= 1) {
-        clearTimeout(timer);
-        resolve();
-      }
+      if (msg.type === "activity_history") resolve(msg);
     };
   });
 
-  expect(received.length).toBeGreaterThanOrEqual(1);
-  expect(received[0]!.type).toBe("activity");
+  expect(historyMsg.type).toBe("activity_history");
+  expect(historyMsg.entries.length).toBeGreaterThanOrEqual(1);
 
   ws.close();
 });

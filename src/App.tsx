@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useContext, createContext, useCallback } from "react";
 import "./index.css";
 
 import logo from "./logo.svg";
@@ -6,9 +6,48 @@ import reactLogo from "./react.svg";
 
 type ActivityEntry = { action: string; timestamp: string };
 
+type WsMessage =
+  | { type: "counter"; count: number }
+  | { type: "activity"; entry: ActivityEntry }
+  | { type: "activity_history"; entries: ActivityEntry[] };
+
+type WsContextValue = {
+  connected: boolean;
+  subscribe: (handler: (msg: WsMessage) => void) => () => void;
+};
+
+const WsContext = createContext<WsContextValue>({
+  connected: false,
+  subscribe: () => () => {},
+});
+
+function WsProvider({ children }: { children: React.ReactNode }) {
+  const [connected, setConnected] = useState(false);
+  const handlersRef = useRef<Set<(msg: WsMessage) => void>>(new Set());
+
+  useEffect(() => {
+    const proto = location.protocol === "https:" ? "wss" : "ws";
+    const ws = new WebSocket(`${proto}://${location.host}/ws`);
+    ws.onopen = () => setConnected(true);
+    ws.onmessage = (event) => {
+      const msg = JSON.parse(event.data as string) as WsMessage;
+      handlersRef.current.forEach((h) => h(msg));
+    };
+    ws.onclose = () => setConnected(false);
+    return () => ws.close();
+  }, []);
+
+  const subscribe = useCallback((handler: (msg: WsMessage) => void) => {
+    handlersRef.current.add(handler);
+    return () => handlersRef.current.delete(handler);
+  }, []);
+
+  return <WsContext.Provider value={{ connected, subscribe }}>{children}</WsContext.Provider>;
+}
+
 function LiveCounter() {
   const [count, setCount] = useState<number | null>(null);
-  const [connected, setConnected] = useState(false);
+  const { connected, subscribe } = useContext(WsContext);
 
   useEffect(() => {
     fetch("/api/counter")
@@ -17,18 +56,10 @@ function LiveCounter() {
   }, []);
 
   useEffect(() => {
-    const proto = location.protocol === "https:" ? "wss" : "ws";
-    const ws = new WebSocket(`${proto}://${location.host}/ws`);
-
-    ws.onopen = () => setConnected(true);
-    ws.onmessage = (event) => {
-      const msg = JSON.parse(event.data as string) as { type: string; count: number };
+    return subscribe((msg) => {
       if (msg.type === "counter") setCount(msg.count);
-    };
-    ws.onclose = () => setConnected(false);
-
-    return () => ws.close();
-  }, []);
+    });
+  }, [subscribe]);
 
   const handleIncrement = () => {
     fetch("/api/counter", { method: "POST" });
@@ -46,30 +77,18 @@ function LiveCounter() {
 
 function ActivityFeed() {
   const [entries, setEntries] = useState<ActivityEntry[]>([]);
-  const [connected, setConnected] = useState(false);
+  const { connected, subscribe } = useContext(WsContext);
   const listRef = useRef<HTMLUListElement>(null);
 
   useEffect(() => {
-    fetch("/api/activity")
-      .then((r) => r.json())
-      .then((data: { entries: ActivityEntry[] }) => setEntries(data.entries));
-  }, []);
-
-  useEffect(() => {
-    const proto = location.protocol === "https:" ? "wss" : "ws";
-    const ws = new WebSocket(`${proto}://${location.host}/ws`);
-
-    ws.onopen = () => setConnected(true);
-    ws.onmessage = (event) => {
-      const msg = JSON.parse(event.data as string) as { type: string; entry: ActivityEntry };
-      if (msg.type === "activity") {
+    return subscribe((msg) => {
+      if (msg.type === "activity_history") {
+        setEntries(msg.entries);
+      } else if (msg.type === "activity") {
         setEntries((prev) => [msg.entry, ...prev].slice(0, 50));
       }
-    };
-    ws.onclose = () => setConnected(false);
-
-    return () => ws.close();
-  }, []);
+    });
+  }, [subscribe]);
 
   useEffect(() => {
     if (listRef.current) {
@@ -85,8 +104,8 @@ function ActivityFeed() {
         {entries.length === 0 ? (
           <li className="empty">No activity yet</li>
         ) : (
-          entries.map((e, i) => (
-            <li key={i}>
+          entries.map((e) => (
+            <li key={e.timestamp + e.action}>
               <span className="action">{e.action}</span>
               <span className="timestamp">{new Date(e.timestamp).toLocaleTimeString()}</span>
             </li>
@@ -99,17 +118,19 @@ function ActivityFeed() {
 
 export function App() {
   return (
-    <div className="app">
-      <div className="logo-container">
-        <img src={logo} alt="Bun Logo" className="logo bun-logo" />
-        <img src={reactLogo} alt="React Logo" className="logo react-logo" />
-      </div>
+    <WsProvider>
+      <div className="app">
+        <div className="logo-container">
+          <img src={logo} alt="Bun Logo" className="logo bun-logo" />
+          <img src={reactLogo} alt="React Logo" className="logo react-logo" />
+        </div>
 
-      <h1>Bun + React</h1>
-      <p>Deployed to GitHub Pages.</p>
-      <LiveCounter />
-      <ActivityFeed />
-    </div>
+        <h1>Bun + React</h1>
+        <p>Deployed to GitHub Pages.</p>
+        <LiveCounter />
+        <ActivityFeed />
+      </div>
+    </WsProvider>
   );
 }
 

@@ -53,9 +53,7 @@ const server = serve({
       ws.subscribe("counter");
       ws.subscribe("activity");
       const entries = getRecentActivity(db);
-      for (const entry of [...entries].reverse()) {
-        ws.send(JSON.stringify({ type: "activity", entry }));
-      }
+      ws.send(JSON.stringify({ type: "activity_history", entries: [...entries].reverse() }));
     },
     message(_ws, _msg) {},
     close(ws) {
