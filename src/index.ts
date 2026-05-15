@@ -1,6 +1,7 @@
 import { serve } from "bun";
 import index from "./index.html";
-import { createCounterDb, getCount, increment } from "./counter";
+import { createCounterDb } from "./counter";
+import { makeCounterRoutes } from "./counter-routes";
 
 const db = createCounterDb();
 
@@ -31,15 +32,7 @@ const server = serve({
       });
     },
 
-    "/api/counter": {
-      GET(_req) {
-        return Response.json({ count: getCount(db) });
-      },
-      POST(_req) {
-        const count = increment(db);
-        return Response.json({ count }, { status: 200 });
-      },
-    },
+    "/api/counter": makeCounterRoutes(db),
   },
 
   development: process.env.NODE_ENV !== "production" && {
