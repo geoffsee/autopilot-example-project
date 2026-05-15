@@ -1,5 +1,10 @@
 import { serve } from "bun";
+import { Database } from "bun:sqlite";
 import index from "./index.html";
+import { setupCounter, getCounterValue, handleCounterPost } from "./counter";
+
+const db = new Database("counter.db");
+setupCounter(db);
 
 const server = serve({
   routes: {
@@ -18,6 +23,15 @@ const server = serve({
           message: "Hello, world!",
           method: "PUT",
         });
+      },
+    },
+
+    "/api/counter": {
+      GET(_req) {
+        return Response.json({ count: getCounterValue(db) });
+      },
+      POST(req) {
+        return handleCounterPost(req, db);
       },
     },
 
