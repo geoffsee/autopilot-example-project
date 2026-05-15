@@ -1,6 +1,7 @@
 import { expect, test, beforeAll, afterAll } from "bun:test";
 import { serve } from "bun";
 import { createCounterDb, getCount, increment } from "../src/counter";
+import { makeCounterRoutes } from "../src/counter-routes";
 
 // Unit tests for counter DB functions
 test("getCount returns 0 on fresh in-memory DB", () => {
@@ -27,15 +28,7 @@ beforeAll(() => {
   server = serve({
     port: 0,
     routes: {
-      "/api/counter": {
-        GET(_req) {
-          return Response.json({ count: getCount(db) });
-        },
-        POST(_req) {
-          const count = increment(db);
-          return Response.json({ count }, { status: 200 });
-        },
-      },
+      "/api/counter": makeCounterRoutes(db),
     },
   });
 
