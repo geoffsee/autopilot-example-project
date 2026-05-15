@@ -12,6 +12,7 @@ function toOpenApiPath(bunPath: string): string {
   return bunPath.replace(/:([^/]+)/g, "{$1}");
 }
 
+// Keep in sync with routes declared in src/index.ts
 const ROUTE_MANIFEST: RouteEntry[] = [
   { path: "/api/hello", method: "get", summary: "Return a hello greeting" },
   { path: "/api/hello", method: "put", summary: "Return a hello greeting via PUT" },
@@ -28,7 +29,7 @@ export type OpenApiDoc = {
   paths: Record<string, Record<string, { summary: string; responses: Record<string, { description: string }> }>>;
 };
 
-export function buildSpec(): OpenApiDoc {
+function buildSpec(): OpenApiDoc {
   const paths: OpenApiDoc["paths"] = {};
 
   for (const entry of ROUTE_MANIFEST) {
@@ -46,3 +47,5 @@ export function buildSpec(): OpenApiDoc {
     paths,
   };
 }
+
+export const SPEC: OpenApiDoc = buildSpec();

@@ -2,7 +2,7 @@ import { serve } from "bun";
 import index from "./index.html";
 import { createCounterDb, getCount, handleCounterPost } from "./counter";
 import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
-import { buildSpec } from "./spec";
+import { SPEC } from "./spec";
 
 const db = createCounterDb();
 setupActivityTable(db);
@@ -49,7 +49,7 @@ export function createServer(port?: number) {
 
       "/api/spec": {
         GET(_req) {
-          return Response.json(buildSpec());
+          return Response.json(SPEC);
         },
       },
 
