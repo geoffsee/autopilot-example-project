@@ -1,6 +1,6 @@
 import { Database } from "bun:sqlite";
 import type { Server } from "bun";
-import { handleCounterPost } from "./counter";
+import { getCounterValue, handleCounterPost } from "./counter";
 
 export function makeCounterRoutes(db: Database) {
   return {
