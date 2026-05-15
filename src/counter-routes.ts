@@ -8,15 +8,14 @@ export function makeCounterRoutes(db: Database) {
       return Response.json({ count: getCounterValue(db) });
     },
     async POST(req: Request, server: Server) {
-      const res = await handleCounterPost(req, db);
-      if (res.status === 200) {
-        const { count } = (await res.clone().json()) as { count: number };
+      const { response, count } = await handleCounterPost(req, db);
+      if (count !== undefined) {
         server.publish(
           "counter",
           JSON.stringify({ type: "counter", count })
         );
       }
-      return res;
+      return response;
     },
   };
 }
