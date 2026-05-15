@@ -12,7 +12,7 @@ export function makeCounterRoutes(db: Database) {
       if (count !== undefined) {
         server.publish(
           "counter",
-          JSON.stringify({ type: "counter", count })
+          JSON.stringify({ type: "counter", name: "default", count })
         );
       }
       return response;

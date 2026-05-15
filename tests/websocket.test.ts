@@ -66,7 +66,7 @@ test("WebSocket receives counter update on POST /api/counter", async () => {
   const { count } = (await postRes.json()) as { count: number };
 
   const msg = await msgPromise;
-  expect(msg).toEqual({ type: "counter", count });
+  expect(msg).toEqual({ type: "counter", name: "default", count });
 
   ws.close();
 });
