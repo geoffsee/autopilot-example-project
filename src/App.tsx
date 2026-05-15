@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useContext, createContext, useCallback } from "react";
 import "./index.css";
+import { logger } from "./logger";
 
 import logo from "./logo.svg";
 import reactLogo from "./react.svg";
@@ -35,7 +36,7 @@ function WsProvider({ children }: { children: React.ReactNode }) {
       const proto = location.protocol === "https:" ? "wss" : "ws";
       ws = new WebSocket(`${proto}://${location.host}/ws`);
       ws.onopen = () => { setConnected(true); delay = 1000; };
-      ws.onerror = (e) => console.error("WebSocket error", e);
+      ws.onerror = () => logger.error("WebSocket error");
       ws.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data as string) as WsMessage;
@@ -71,7 +72,7 @@ function LiveCounter() {
     fetch("/api/counter")
       .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then((data: { count: number }) => setCount(data.count))
-      .catch((err) => console.error("Failed to fetch counter", err));
+      .catch((err) => logger.error("Failed to fetch counter", { error: String(err) }));
   }, []);
 
   useEffect(() => {
@@ -81,7 +82,7 @@ function LiveCounter() {
   }, [subscribe]);
 
   const handleIncrement = () => {
-    fetch("/api/counter", { method: "POST" }).catch((err) => console.error("Increment failed", err));
+    fetch("/api/counter", { method: "POST" }).catch((err) => logger.error("Increment failed", { error: String(err) }));
   };
 
   return (
