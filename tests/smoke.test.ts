@@ -16,20 +16,22 @@ afterAll(async () => {
 test("GET /api/hello returns { message: string }", async () => {
   const res = await fetch(`${baseUrl}/api/hello`);
   expect(res.status).toBe(200);
-  const body = (await res.json()) as { message: unknown };
+  const body = (await res.json()) as { message: string; method: string };
   expect(body.message).toBe("Hello, world!");
+  expect(body.method).toBe("GET");
 });
 
 test("PUT /api/hello returns { message: string }", async () => {
   const res = await fetch(`${baseUrl}/api/hello`, { method: "PUT" });
   expect(res.status).toBe(200);
-  const body = (await res.json()) as { message: unknown };
+  const body = (await res.json()) as { message: string; method: string };
   expect(body.message).toBe("Hello, world!");
+  expect(body.method).toBe("PUT");
 });
 
 test("GET /api/hello/:name returns greeting for name", async () => {
   const res = await fetch(`${baseUrl}/api/hello/caretta`);
   expect(res.status).toBe(200);
-  const body = (await res.json()) as { message: unknown };
+  const body = (await res.json()) as { message: string };
   expect(body.message).toBe("Hello, caretta!");
 });
