@@ -10,3 +10,4 @@ dist/
 counter.db
 counter.db-wal
 counter.db-shm
+docs/internal/
