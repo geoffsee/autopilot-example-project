@@ -45,9 +45,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      # The action mints a GitHub App installation token from
-      # DEV_BOT_APP_ID + DEV_BOT_PRIVATE_KEY_B64 so caretta can create PRs.
-      # (DEV_BOT_INSTALLATION_ID skips the installation lookup when set.)
       - uses: geoffsee/caretta-autopilot-action@main
         with:
           caretta-version: latest
