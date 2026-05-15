@@ -1,13 +1,16 @@
 import { serve } from "bun";
 import index from "./index.html";
-import { createCounterDb, getCount, handleCounterPost } from "./counter";
+import { createCounterDb, getCount, handleCounterPost, getNamedCount, incrementNamedCounter } from "./counter";
 import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
-import { config } from "./config";
+import { config as defaultConfig, buildConfig } from "./config";
+import { verifyJwt, extractBearer } from "./auth";
 
 const db = createCounterDb();
 setupActivityTable(db);
 
-export function createServer(port?: number) {
+type Config = ReturnType<typeof buildConfig>;
+
+export function createServer(port?: number, config: Config = defaultConfig) {
   return serve({
     port,
     routes: {
@@ -38,6 +41,25 @@ export function createServer(port?: number) {
             server.publish("activity", JSON.stringify({ type: "activity", entry }));
           }
           return response;
+        },
+      },
+
+      "/api/counter/:name": {
+        GET(req) {
+          return Response.json({ count: getNamedCount(db, req.params.name) });
+        },
+        async POST(req) {
+          const bearer = extractBearer(req);
+          if (!bearer) {
+            return Response.json({ error: "Unauthorized" }, { status: 401 });
+          }
+          try {
+            await verifyJwt(bearer, config.JWT_SECRET);
+          } catch {
+            return Response.json({ error: "Unauthorized" }, { status: 401 });
+          }
+          const count = incrementNamedCounter(db, req.params.name);
+          return Response.json({ count });
         },
       },
 
