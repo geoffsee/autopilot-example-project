@@ -26,3 +26,4 @@ All tests run automatically on every push via GitHub Actions. A failing `bun tes
 - Do not modify `.github/workflows/**` from sprint/tracker issue branches.
 - Do not update shared tracker or status files (`ISSUES.md`, `STATUS.md`) from implementation branches.
 - Keep changes minimal and focused — implement only what the issue authorizes.
+
