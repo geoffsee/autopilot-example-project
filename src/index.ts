@@ -1,39 +1,71 @@
 import { serve } from "bun";
 import index from "./index.html";
+import { createCounterDb, getCount, increment } from "./counter";
+import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
+
+const db = createCounterDb();
+setupActivityTable(db);
 
 const server = serve({
   routes: {
-    // Serve index.html for all unmatched routes.
     "/*": index,
 
     "/api/hello": {
-      async GET(req) {
-        return Response.json({
-          message: "Hello, world!",
-          method: "GET",
-        });
+      async GET(_req) {
+        return Response.json({ message: "Hello, world!", method: "GET" });
       },
-      async PUT(req) {
-        return Response.json({
-          message: "Hello, world!",
-          method: "PUT",
-        });
+      async PUT(_req) {
+        return Response.json({ message: "Hello, world!", method: "PUT" });
       },
     },
 
-    "/api/hello/:name": async req => {
-      const name = req.params.name;
-      return Response.json({
-        message: `Hello, ${name}!`,
-      });
+    "/api/hello/:name": async (req) => {
+      return Response.json({ message: `Hello, ${req.params.name}!` });
+    },
+
+    "/api/counter": {
+      GET(_req) {
+        return Response.json({ count: getCount(db) });
+      },
+      async POST(_req, server) {
+        const count = increment(db);
+        server.publish("counter", JSON.stringify({ type: "counter", count }));
+        const entry = logActivity(db, "counter.increment");
+        server.publish("activity", JSON.stringify({ type: "activity", entry }));
+        return Response.json({ count }, { status: 200 });
+      },
+    },
+
+    "/api/activity": {
+      GET(_req) {
+        return Response.json({ entries: getRecentActivity(db) });
+      },
+    },
+
+    "/ws": (req, server) => {
+      if (server.upgrade(req)) return;
+      return new Response("WebSocket upgrade failed", { status: 400 });
+    },
+  },
+
+  websocket: {
+    open(ws) {
+      ws.subscribe("counter");
+      ws.subscribe("activity");
+      const entries = getRecentActivity(db);
+      for (const entry of [...entries].reverse()) {
+        ws.send(JSON.stringify({ type: "activity", entry }));
+      }
+    },
+    message(_ws, _msg) {},
+    close(ws) {
+      ws.unsubscribe("counter");
+      ws.unsubscribe("activity");
     },
   },
 
   development: process.env.NODE_ENV !== "production" && {
-    // Enable browser hot reloading in development
     hmr: true,
-
-    // Echo console logs from the browser to the server
     console: true,
   },
 });
