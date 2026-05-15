@@ -9,8 +9,8 @@ beforeAll(() => {
   baseUrl = server.url.origin;
 });
 
-afterAll(() => {
-  server.stop();
+afterAll(async () => {
+  await server.stop();
 });
 
 test("GET /api/hello returns { message: string }", async () => {
