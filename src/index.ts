@@ -1,39 +1,49 @@
 import { serve } from "bun";
-import { Database } from "bun:sqlite";
 import index from "./index.html";
-import { setupCounter } from "./counter";
-import { makeCounterRoutes } from "./counter-routes";
+import { createCounterDb, getCount, handleCounterPost } from "./counter";
+import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
 
-const db = new Database("counter.db");
-setupCounter(db);
+const db = createCounterDb();
+setupActivityTable(db);
 
 const server = serve({
   routes: {
-    // Serve index.html for all unmatched routes.
     "/*": index,
 
     "/api/hello": {
       async GET(_req) {
-        return Response.json({
-          message: "Hello, world!",
-          method: "GET",
-        });
+        return Response.json({ message: "Hello, world!", method: "GET" });
       },
       async PUT(_req) {
-        return Response.json({
-          message: "Hello, world!",
-          method: "PUT",
-        });
+        return Response.json({ message: "Hello, world!", method: "PUT" });
       },
     },
 
     "/api/hello/:name": async (req) => {
-      return Response.json({
-        message: `Hello, ${req.params.name}!`,
-      });
+      return Response.json({ message: `Hello, ${req.params.name}!` });
     },
 
-    "/api/counter": makeCounterRoutes(db),
+    "/api/counter": {
+      GET(_req) {
+        return Response.json({ count: getCount(db) });
+      },
+      async POST(req, server) {
+        const response = await handleCounterPost(req, db);
+        if (response.ok) {
+          const { count } = await response.clone().json() as { count: number };
+          server.publish("counter", JSON.stringify({ type: "counter", count }));
+          const entry = logActivity(db, "counter.increment");
+          server.publish("activity", JSON.stringify({ type: "activity", entry }));
+        }
+        return response;
+      },
+    },
+
+    "/api/activity": {
+      GET(_req) {
+        return Response.json({ entries: getRecentActivity(db) });
+      },
+    },
 
     "/ws": (req, server) => {
       if (server.upgrade(req)) return;
@@ -44,18 +54,19 @@ const server = serve({
   websocket: {
     open(ws) {
       ws.subscribe("counter");
+      ws.subscribe("activity");
+      const entries = getRecentActivity(db);
+      ws.send(JSON.stringify({ type: "activity_history", entries }));
     },
     message(_ws, _msg) {},
     close(ws) {
       ws.unsubscribe("counter");
+      ws.unsubscribe("activity");
     },
   },
 
   development: process.env.NODE_ENV !== "production" && {
-    // Enable browser hot reloading in development
     hmr: true,
-
-    // Echo console logs from the browser to the server
     console: true,
   },
 });

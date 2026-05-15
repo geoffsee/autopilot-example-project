@@ -178,6 +178,82 @@ code {
 .response-area::placeholder {
   color: rgba(251, 240, 223, 0.4);
 }
+.live-counter,
+.activity-feed {
+  margin: 2rem auto 0;
+  width: 100%;
+  max-width: 600px;
+  text-align: left;
+  background: #1a1a1a;
+  border: 2px solid #fbf0df;
+  border-radius: 12px;
+  padding: 1.25rem;
+  box-sizing: border-box;
+}
+.live-counter h2,
+.activity-feed h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.2em;
+}
+.live-counter p,
+.activity-feed p {
+  margin: 0.25rem 0;
+  color: rgba(251, 240, 223, 0.6);
+  font-size: 0.85em;
+}
+.count {
+  font-size: 3em;
+  font-weight: 700;
+  color: #fbf0df;
+  margin: 0.5rem 0;
+}
+.live-counter button {
+  background: #fbf0df;
+  color: #1a1a1a;
+  border: none;
+  padding: 0.4rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.1s, transform 0.1s;
+}
+.live-counter button:hover {
+  background: #f3d5a3;
+  transform: translateY(-1px);
+}
+.activity-feed ul {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  max-height: 300px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.activity-feed li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  background: #242424;
+  border-radius: 6px;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.9em;
+}
+.activity-feed li.empty {
+  color: rgba(251, 240, 223, 0.4);
+  justify-content: center;
+}
+.action {
+  font-family: monospace;
+  color: #fbf0df;
+}
+.timestamp {
+  color: rgba(251, 240, 223, 0.5);
+  font-size: 0.85em;
+  white-space: nowrap;
+  margin-left: 1rem;
+}
 @media (prefers-reduced-motion) {
   *,
   ::before,

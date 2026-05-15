@@ -1,5 +1,22 @@
 import { Database } from "bun:sqlite";
 
+export function createCounterDb(path = "counter.db"): Database {
+  const db = new Database(path);
+  setupCounter(db);
+  return db;
+}
+
+export function getCount(db: Database): number {
+  return getCounterValue(db);
+}
+
+export function incrementCounter(db: Database): number {
+  const row = db
+    .query("UPDATE counter SET value = value + 1 WHERE id = 1 RETURNING value")
+    .get() as { value: number };
+  return row.value;
+}
+
 export function setupCounter(db: Database): void {
   db.run(
     `CREATE TABLE IF NOT EXISTS counter (id INTEGER PRIMARY KEY, value INTEGER NOT NULL DEFAULT 0)`
