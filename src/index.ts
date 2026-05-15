@@ -1,46 +1,84 @@
 import { serve } from "bun";
 import index from "./index.html";
 import { handleClaude } from "./claude";
+import { createCounterDb, getCount, handleCounterPost } from "./counter";
+import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
 
-const server = serve({
-  routes: {
-    // Serve index.html for all unmatched routes.
-    "/*": index,
+const db = createCounterDb();
+setupActivityTable(db);
 
-    "/api/hello": {
-      async GET(req) {
-        return Response.json({
-          message: "Hello, world!",
-          method: "GET",
-        });
+export function createServer(port?: number) {
+  return serve({
+    port,
+    routes: {
+      "/*": index,
+
+      "/api/hello": {
+        async GET(_req) {
+          return Response.json({ message: "Hello, world!", method: "GET" });
+        },
+        async PUT(_req) {
+          return Response.json({ message: "Hello, world!", method: "PUT" });
+        },
       },
-      async PUT(req) {
-        return Response.json({
-          message: "Hello, world!",
-          method: "PUT",
-        });
+
+      "/api/hello/:name": async (req) => {
+        return Response.json({ message: `Hello, ${req.params.name}!` });
+      },
+
+      "/api/counter": {
+        GET(_req) {
+          return Response.json({ count: getCount(db) });
+        },
+        async POST(req, server) {
+          const { response, count } = await handleCounterPost(req, db);
+          if (response.ok && typeof count === "number") {
+            server.publish("counter", JSON.stringify({ type: "counter", count }));
+            const entry = logActivity(db, "counter.increment");
+            server.publish("activity", JSON.stringify({ type: "activity", entry }));
+          }
+          return response;
+        },
+      },
+
+      "/api/activity": {
+        GET(_req) {
+          return Response.json({ entries: getRecentActivity(db) });
+        },
+      },
+
+      "/api/claude": {
+        POST: handleClaude,
+      },
+
+      "/ws": (req, server) => {
+        if (server.upgrade(req)) return;
+        return new Response("WebSocket upgrade failed", { status: 400 });
       },
     },
 
-    "/api/hello/:name": async req => {
-      const name = req.params.name;
-      return Response.json({
-        message: `Hello, ${name}!`,
-      });
+    websocket: {
+      open(ws) {
+        ws.subscribe("counter");
+        ws.subscribe("activity");
+        const entries = getRecentActivity(db);
+        ws.send(JSON.stringify({ type: "activity_history", entries }));
+      },
+      message(_ws, _msg) {},
+      close(ws) {
+        ws.unsubscribe("counter");
+        ws.unsubscribe("activity");
+      },
     },
 
-    "/api/claude": {
-      POST: handleClaude,
+    development: process.env.NODE_ENV !== "production" && {
+      hmr: true,
+      console: true,
     },
-  },
+  });
+}
 
-  development: process.env.NODE_ENV !== "production" && {
-    // Enable browser hot reloading in development
-    hmr: true,
-
-    // Echo console logs from the browser to the server
-    console: true,
-  },
-});
-
-console.log(`🚀 Server running at ${server.url}`);
+if (import.meta.main) {
+  const server = createServer();
+  console.log(`🚀 Server running at ${server.url}`);
+}
