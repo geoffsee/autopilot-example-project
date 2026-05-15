@@ -1,0 +1,48 @@
+type HttpMethod = "get" | "put" | "post" | "delete" | "patch";
+
+type RouteEntry = {
+  path: string;
+  method: HttpMethod;
+  summary: string;
+  description?: string;
+};
+
+// Bun uses :param syntax; OpenAPI uses {param}
+function toOpenApiPath(bunPath: string): string {
+  return bunPath.replace(/:([^/]+)/g, "{$1}");
+}
+
+const ROUTE_MANIFEST: RouteEntry[] = [
+  { path: "/api/hello", method: "get", summary: "Return a hello greeting" },
+  { path: "/api/hello", method: "put", summary: "Return a hello greeting via PUT" },
+  { path: "/api/hello/:name", method: "get", summary: "Return a personalised greeting" },
+  { path: "/api/counter", method: "get", summary: "Get the current counter value" },
+  { path: "/api/counter", method: "post", summary: "Increment the counter" },
+  { path: "/api/activity", method: "get", summary: "Get recent activity entries" },
+  { path: "/api/spec", method: "get", summary: "Get the OpenAPI 3.1 specification" },
+];
+
+export type OpenApiDoc = {
+  openapi: string;
+  info: { title: string; version: string };
+  paths: Record<string, Record<string, { summary: string; responses: Record<string, { description: string }> }>>;
+};
+
+export function buildSpec(): OpenApiDoc {
+  const paths: OpenApiDoc["paths"] = {};
+
+  for (const entry of ROUTE_MANIFEST) {
+    const openApiPath = toOpenApiPath(entry.path);
+    if (!paths[openApiPath]) paths[openApiPath] = {};
+    paths[openApiPath][entry.method] = {
+      summary: entry.summary,
+      responses: { "200": { description: "OK" } },
+    };
+  }
+
+  return {
+    openapi: "3.1.0",
+    info: { title: "Autopilot Example API", version: "0.1.0" },
+    paths,
+  };
+}
