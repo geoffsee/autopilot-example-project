@@ -1,4 +1,4 @@
-# AGENTS.md
+# Agent Behavioral Constraints
 
 Behavioral constraints for autopilot agents working in this repository.
 
