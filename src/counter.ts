@@ -59,6 +59,8 @@ export async function handleCounterPost(
     }
   }
 
-  db.run("UPDATE counter SET value = value + ? WHERE id = 1", [increment]);
-  return Response.json({ count: getCounterValue(db) });
+  const row = db
+    .query("UPDATE counter SET value = value + ? WHERE id = 1 RETURNING value")
+    .get(increment) as { value: number };
+  return Response.json({ count: row.value });
 }
