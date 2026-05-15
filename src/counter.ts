@@ -3,6 +3,7 @@ import { Database } from "bun:sqlite";
 export function createCounterDb(path = "counter.db"): Database {
   const db = new Database(path);
   setupCounter(db);
+  setupNamedCounters(db);
   return db;
 }
 
@@ -34,6 +35,34 @@ export function getCounterValue(db: Database): number {
     value: number;
   } | null;
   return row?.value ?? 0;
+}
+
+export function setupNamedCounters(db: Database): void {
+  db.run(
+    `CREATE TABLE IF NOT EXISTS named_counters (
+      name  TEXT PRIMARY KEY,
+      value INTEGER NOT NULL DEFAULT 0
+    )`
+  );
+}
+
+export function getNamedCount(db: Database, name: string): number {
+  const row = db
+    .query("SELECT value FROM named_counters WHERE name = ?")
+    .get(name) as { value: number } | null;
+  return row?.value ?? 0;
+}
+
+export function incrementNamedCounter(db: Database, name: string, increment = 1): number {
+  db.run(
+    `INSERT INTO named_counters (name, value) VALUES (?, ?)
+     ON CONFLICT(name) DO UPDATE SET value = value + excluded.value`,
+    [name, increment]
+  );
+  const row = db
+    .query("SELECT value FROM named_counters WHERE name = ?")
+    .get(name) as { value: number };
+  return row.value;
 }
 
 export async function handleCounterPost(

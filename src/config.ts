@@ -11,9 +11,11 @@ export function buildConfig(env: RawEnv = process.env) {
     );
   }
   const NODE_ENV = nodeEnvRaw as NodeEnv;
+  const JWT_SECRET = env.JWT_SECRET ?? "dev-secret-change-in-production";
   return {
     NODE_ENV,
     isDevelopment: NODE_ENV !== "production",
+    JWT_SECRET,
   } as const;
 }
 
