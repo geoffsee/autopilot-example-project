@@ -12,7 +12,7 @@ The autopilot action runs everything inline — no dispatched follow-up workflow
 ## Setup
 
 1. Copy `.github/workflows/` into your repo.
-2. Set secrets: `CLAUDE_CODE_OAUTH_TOKEN`, `DEV_BOT_APP_ID`, `DEV_BOT_PRIVATE_KEY_B64`.
+2. Set secrets: `CLAUDE_CODE_OAUTH_TOKEN`, `DEV_BOT_APP_ID`, `DEV_BOT_INSTALLATION_ID`, `DEV_BOT_PRIVATE_KEY_B64`. (All four App-related secrets are required — caretta mints its own installation token via JWT and needs the installation ID to call `/app/installations/{id}/access_tokens`.)
 3. Settings → Actions → General → enable *Read and write permissions* and *Allow GitHub Actions to create and approve pull requests*.
 4. Open a sprint issue with the `sprint` label to kick off the work-dispatch route, or leave it empty and the factory cycle will seed ideas on the next heartbeat.
 
