@@ -4,14 +4,20 @@ export function setupCounter(db: Database): void {
   db.run(
     `CREATE TABLE IF NOT EXISTS counter (id INTEGER PRIMARY KEY, value INTEGER NOT NULL DEFAULT 0)`
   );
+  // Migrate existing databases that still use the old column name.
+  try {
+    db.run(`ALTER TABLE counter RENAME COLUMN count TO value`);
+  } catch {
+    // Column already named 'value' — no migration needed.
+  }
   db.run(`INSERT OR IGNORE INTO counter (id, value) VALUES (1, 0)`);
 }
 
 export function getCounterValue(db: Database): number {
   const row = db.query("SELECT value FROM counter WHERE id = 1").get() as {
     value: number;
-  };
-  return row.value;
+  } | null;
+  return row?.value ?? 0;
 }
 
 export async function handleCounterPost(

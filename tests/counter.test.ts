@@ -1,4 +1,4 @@
-import { test, expect, beforeEach, afterAll } from "bun:test";
+import { test, expect, beforeEach, afterEach } from "bun:test";
 import { Database } from "bun:sqlite";
 import { setupCounter, getCounterValue, handleCounterPost } from "../src/counter";
 
@@ -20,7 +20,7 @@ beforeEach(() => {
   setupCounter(db);
 });
 
-afterAll(() => {
+afterEach(() => {
   db.close();
 });
 
