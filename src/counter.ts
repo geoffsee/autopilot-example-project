@@ -11,8 +11,10 @@ export function getCount(db: Database): number {
 }
 
 export function incrementCounter(db: Database): number {
-  db.run("UPDATE counter SET value = value + 1 WHERE id = 1");
-  return getCounterValue(db);
+  const row = db
+    .query("UPDATE counter SET value = value + 1 WHERE id = 1 RETURNING value")
+    .get() as { value: number };
+  return row.value;
 }
 
 export function setupCounter(db: Database): void {

@@ -1,6 +1,6 @@
 import { expect, test, beforeAll, afterAll } from "bun:test";
 import { serve } from "bun";
-import { createCounterDb, incrementCounter } from "../src/counter";
+import { createCounterDb, handleCounterPost } from "../src/counter";
 import { setupActivityTable, logActivity, getRecentActivity } from "../src/activity";
 
 // Unit tests for activity DB functions
@@ -56,12 +56,15 @@ beforeAll(() => {
         GET(_req) {
           return Response.json({ count: 0 });
         },
-        async POST(_req, server) {
-          const count = incrementCounter(db);
-          server.publish("counter", JSON.stringify({ type: "counter", count }));
-          const entry = logActivity(db, "counter.increment");
-          server.publish("activity", JSON.stringify({ type: "activity", entry }));
-          return Response.json({ count }, { status: 200 });
+        async POST(req, server) {
+          const response = await handleCounterPost(req, db);
+          if (response.ok) {
+            const { count } = await response.clone().json() as { count: number };
+            server.publish("counter", JSON.stringify({ type: "counter", count }));
+            const entry = logActivity(db, "counter.increment");
+            server.publish("activity", JSON.stringify({ type: "activity", entry }));
+          }
+          return response;
         },
       },
       "/api/activity": {
@@ -187,4 +190,31 @@ test("WebSocket sends existing activity entries on connect", async () => {
   expect(historyMsg.entries.length).toBeGreaterThanOrEqual(1);
 
   ws.close();
+});
+
+test("POST /api/counter rejects non-JSON content-type", async () => {
+  const res = await fetch(`${baseUrl}/api/counter`, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain" },
+    body: "not json",
+  });
+  expect(res.status).toBe(400);
+});
+
+test("POST /api/counter rejects invalid JSON body", async () => {
+  const res = await fetch(`${baseUrl}/api/counter`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{bad json",
+  });
+  expect(res.status).toBe(400);
+});
+
+test("POST /api/counter rejects negative increment", async () => {
+  const res = await fetch(`${baseUrl}/api/counter`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ increment: -1 }),
+  });
+  expect(res.status).toBe(400);
 });
