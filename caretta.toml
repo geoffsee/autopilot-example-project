@@ -1,0 +1,10 @@
+project_name = "autopilot-example-project"
+
+[test]
+command = ["bun", "test"]
+format_command = ["bunx", "--bun", "@biomejs/biome", "format", "./src"]
+
+[security_scan]
+paths = [
+# nothing here yet
+]
