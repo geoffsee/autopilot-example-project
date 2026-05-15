@@ -30,7 +30,7 @@ export function createServer(port?: number) {
       },
     },
 
-    development: process.env.NODE_ENV === "development" && {
+    development: process.env.NODE_ENV !== "production" && {
       hmr: true,
       console: true,
     },
