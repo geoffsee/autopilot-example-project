@@ -16,11 +16,13 @@ test("ErrorBoundary renders children when no error", () => {
 });
 
 test("ErrorBoundary renders fallback when hasError state is true", () => {
-  // Full error-boundary lifecycle (getDerivedStateFromError, componentDidCatch) requires
-  // a reconciler-driven render (e.g. @testing-library/react with happy-dom/jsdom).
-  // This test bypasses the reconciler to verify the fallback render path in isolation.
+  // Full error-boundary lifecycle (getDerivedStateFromError, componentDidCatch, and the
+  // resetKey remount flow) requires a reconciler-driven render. If @testing-library/react
+  // with happy-dom/jsdom is added, replace this with render(<ErrorBoundary>) + an
+  // error-throwing child to get complete lifecycle coverage at no extra cost.
+  // For now, this bypasses the reconciler to verify the fallback render path in isolation.
   const instance = new ErrorBoundary({ children: createElement("span", null, "child") });
-  instance.state = { hasError: true };
+  instance.state = { hasError: true, resetKey: 0 };
   const html = renderToString(instance.render() as ReturnType<typeof createElement>);
   expect(html).toContain("Something went wrong.");
 });

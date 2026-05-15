@@ -1,4 +1,4 @@
-import { Component, type ReactNode, type ErrorInfo } from "react";
+import { Component, Fragment, type ReactNode, type ErrorInfo } from "react";
 
 interface Props {
   children: ReactNode;
@@ -6,13 +6,14 @@ interface Props {
 
 interface State {
   hasError: boolean;
+  resetKey: number;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
-  override state: State = { hasError: false };
+  override state: State = { hasError: false, resetKey: 0 };
 
   static getDerivedStateFromError(_error: Error): State {
-    return { hasError: true };
+    return { hasError: true, resetKey: 0 };
   }
 
   override componentDidCatch(error: Error, info: ErrorInfo) {
@@ -28,10 +29,10 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div>
           Something went wrong.{" "}
-          <button onClick={() => this.setState({ hasError: false })}>Try again</button>
+          <button onClick={() => this.setState(s => ({ hasError: false, resetKey: s.resetKey + 1 }))}>Try again</button>
         </div>
       );
     }
-    return this.props.children;
+    return <Fragment key={this.state.resetKey}>{this.props.children}</Fragment>;
   }
 }
