@@ -1,6 +1,7 @@
 import { serve } from "bun";
 import index from "./index.html";
-import { createCounterDb, getCount, increment } from "./counter";
+import { createCounterDb } from "./counter";
+import { makeCounterRoutes } from "./counter-routes";
 
 const db = createCounterDb();
 
@@ -30,16 +31,7 @@ const server = serve({
       });
     },
 
-    "/api/counter": {
-      GET(_req) {
-        return Response.json({ count: getCount(db) });
-      },
-      async POST(_req, server) {
-        const count = increment(db);
-        server.publish("counter", JSON.stringify({ type: "counter", count }));
-        return Response.json({ count }, { status: 200 });
-      },
-    },
+    "/api/counter": makeCounterRoutes(db),
 
     "/ws": (req, server) => {
       if (server.upgrade(req)) return;
