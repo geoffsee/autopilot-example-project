@@ -35,7 +35,7 @@ const server = serve({
       GET(_req) {
         return Response.json({ count: getCount(db) });
       },
-      async POST(_req) {
+      POST(_req) {
         const count = increment(db);
         return Response.json({ count }, { status: 200 });
       },
