@@ -2,6 +2,7 @@ import { serve } from "bun";
 import index from "./index.html";
 import { createCounterDb, getCount, handleCounterPost } from "./counter";
 import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
+import { getAgentHistory } from "./agent-history";
 
 const db = createCounterDb();
 setupActivityTable(db);
@@ -43,6 +44,13 @@ export function createServer(port?: number) {
       "/api/activity": {
         GET(_req) {
           return Response.json({ entries: getRecentActivity(db) });
+        },
+      },
+
+      "/api/agents/history": {
+        async GET(_req) {
+          const history = await getAgentHistory();
+          return Response.json({ history });
         },
       },
 
