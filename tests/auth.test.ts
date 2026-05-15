@@ -75,14 +75,6 @@ afterAll(async () => {
   await server.stop();
 });
 
-test("POST /api/auth/token returns a signed JWT", async () => {
-  const res = await fetch(`${baseUrl}/api/auth/token`, { method: "POST" });
-  expect(res.status).toBe(200);
-  const body = (await res.json()) as { token: string };
-  expect(typeof body.token).toBe("string");
-  expect(body.token.split(".")).toHaveLength(3);
-});
-
 test("POST /api/counter/:name without token returns 401", async () => {
   const res = await fetch(`${baseUrl}/api/counter/hits`, { method: "POST" });
   expect(res.status).toBe(401);
@@ -107,8 +99,7 @@ test("POST /api/counter/:name with expired token returns 401", async () => {
 });
 
 test("POST /api/counter/:name with valid token returns 200 and count", async () => {
-  const tokenRes = await fetch(`${baseUrl}/api/auth/token`, { method: "POST" });
-  const { token } = (await tokenRes.json()) as { token: string };
+  const token = await signJwt({ sub: "user" }, TEST_SECRET);
 
   const res = await fetch(`${baseUrl}/api/counter/widgets`, {
     method: "POST",
@@ -121,8 +112,7 @@ test("POST /api/counter/:name with valid token returns 200 and count", async () 
 });
 
 test("POST /api/counter/:name increments the named counter independently", async () => {
-  const tokenRes = await fetch(`${baseUrl}/api/auth/token`, { method: "POST" });
-  const { token } = (await tokenRes.json()) as { token: string };
+  const token = await signJwt({ sub: "user" }, TEST_SECRET);
 
   const headers = { authorization: `Bearer ${token}` };
 

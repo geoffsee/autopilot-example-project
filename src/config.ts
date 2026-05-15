@@ -11,11 +11,15 @@ export function buildConfig(env: RawEnv = process.env) {
     );
   }
   const NODE_ENV = nodeEnvRaw as NodeEnv;
-  const JWT_SECRET = env.JWT_SECRET ?? "dev-secret-change-in-production";
+  const JWT_SECRET = env.JWT_SECRET;
+  if (!JWT_SECRET && nodeEnvRaw === "production") {
+    throw new Error("JWT_SECRET env var must be set in production");
+  }
+  const resolvedSecret = JWT_SECRET ?? "dev-secret-change-in-production";
   return {
     NODE_ENV,
     isDevelopment: NODE_ENV !== "production",
-    JWT_SECRET,
+    JWT_SECRET: resolvedSecret,
   } as const;
 }
 
