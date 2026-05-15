@@ -86,11 +86,13 @@ test("multiple WebSocket clients receive the same broadcast", async () => {
     }),
   ]);
 
-  const msg1Promise = new Promise<{ type: string; count: number }>((resolve) => {
-    ws1.onmessage = (e) => resolve(JSON.parse(e.data as string));
+  const msg1Promise = new Promise<{ type: string; count: number }>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error("ws1 timed out")), 3000);
+    ws1.onmessage = (e) => { clearTimeout(t); resolve(JSON.parse(e.data as string)); };
   });
-  const msg2Promise = new Promise<{ type: string; count: number }>((resolve) => {
-    ws2.onmessage = (e) => resolve(JSON.parse(e.data as string));
+  const msg2Promise = new Promise<{ type: string; count: number }>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error("ws2 timed out")), 3000);
+    ws2.onmessage = (e) => { clearTimeout(t); resolve(JSON.parse(e.data as string)); };
   });
 
   await fetch(`http://localhost:${testServer.port}/api/counter`, {
