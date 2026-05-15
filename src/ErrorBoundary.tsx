@@ -16,12 +16,21 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   override componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error("Uncaught error:", error, info.componentStack);
+    if (process.env.NODE_ENV !== "production") {
+      console.error("Uncaught error:", error, info.componentStack);
+    } else {
+      console.error("Uncaught error:", error);
+    }
   }
 
   override render() {
     if (this.state.hasError) {
-      return <div>Something went wrong.</div>;
+      return (
+        <div>
+          Something went wrong.{" "}
+          <button onClick={() => this.setState({ hasError: false })}>Try again</button>
+        </div>
+      );
     }
     return this.props.children;
   }

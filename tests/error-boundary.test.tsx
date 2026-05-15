@@ -16,7 +16,9 @@ test("ErrorBoundary renders children when no error", () => {
 });
 
 test("ErrorBoundary renders fallback when hasError state is true", () => {
-  // Error boundaries are client-side; we test fallback by calling render() directly.
+  // Full error-boundary lifecycle (getDerivedStateFromError, componentDidCatch) requires
+  // a reconciler-driven render (e.g. @testing-library/react with happy-dom/jsdom).
+  // This test bypasses the reconciler to verify the fallback render path in isolation.
   const instance = new ErrorBoundary({ children: createElement("span", null, "child") });
   instance.state = { hasError: true };
   const html = renderToString(instance.render() as ReturnType<typeof createElement>);
