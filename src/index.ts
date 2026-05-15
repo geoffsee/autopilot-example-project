@@ -1,5 +1,8 @@
 import { serve } from "bun";
 import index from "./index.html";
+import { createCounterDb, getCount, increment } from "./counter";
+
+const db = createCounterDb();
 
 const server = serve({
   routes: {
@@ -26,6 +29,16 @@ const server = serve({
       return Response.json({
         message: `Hello, ${name}!`,
       });
+    },
+
+    "/api/counter": {
+      GET(_req) {
+        return Response.json({ count: getCount(db) });
+      },
+      async POST(_req) {
+        const count = increment(db);
+        return Response.json({ count }, { status: 200 });
+      },
     },
   },
 
