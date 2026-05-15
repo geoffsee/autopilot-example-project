@@ -39,38 +39,47 @@ export function getCounterValue(db: Database): number {
 export async function handleCounterPost(
   req: Request,
   db: Database
-): Promise<Response> {
+): Promise<{ response: Response; count?: number }> {
   const text = await req.text();
   let increment = 1;
 
   if (text.trim() !== "") {
     const contentType = req.headers.get("content-type") ?? "";
     if (!contentType.includes("application/json")) {
-      return Response.json(
-        { error: "Content-Type must be application/json" },
-        { status: 400 }
-      );
+      return {
+        response: Response.json(
+          { error: "Content-Type must be application/json" },
+          { status: 400 }
+        ),
+      };
     }
 
     let body: unknown;
     try {
       body = JSON.parse(text);
     } catch {
-      return Response.json({ error: "Invalid JSON" }, { status: 400 });
+      return { response: Response.json({ error: "Invalid JSON" }, { status: 400 }) };
     }
 
     if (typeof body !== "object" || body === null || Array.isArray(body)) {
-      return Response.json({ error: "Body must be an object" }, { status: 400 });
+      return { response: Response.json({ error: "Body must be an object" }, { status: 400 }) };
     }
 
     const obj = body as Record<string, unknown>;
     if ("increment" in obj) {
       const inc = obj.increment;
-      if (typeof inc !== "number" || !Number.isInteger(inc) || inc < 0) {
-        return Response.json(
-          { error: "increment must be a non-negative integer" },
-          { status: 400 }
-        );
+      if (
+        typeof inc !== "number" ||
+        !Number.isInteger(inc) ||
+        inc < 0 ||
+        inc > 1_000_000
+      ) {
+        return {
+          response: Response.json(
+            { error: "increment must be a non-negative integer no greater than 1000000" },
+            { status: 400 }
+          ),
+        };
       }
       increment = inc;
     }
@@ -78,6 +87,7 @@ export async function handleCounterPost(
 
   const row = db
     .query("UPDATE counter SET value = value + ? WHERE id = 1 RETURNING value")
-    .get(increment) as { value: number };
-  return Response.json({ count: row.value });
+    .get(increment) as { value: number } | null;
+  if (!row) return { response: Response.json({ error: "Counter not found" }, { status: 500 }) };
+  return { response: Response.json({ count: row.value }), count: row.value };
 }
