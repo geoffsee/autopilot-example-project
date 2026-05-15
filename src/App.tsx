@@ -22,6 +22,7 @@ function LiveCounter() {
     let ws: WebSocket;
     let delay = 1000;
     let cancelled = false;
+    let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
 
     function connect() {
       const proto = location.protocol === "https:" ? "wss" : "ws";
@@ -38,7 +39,7 @@ function LiveCounter() {
       ws.onclose = () => {
         setConnected(false);
         if (!cancelled) {
-          setTimeout(connect, delay);
+          reconnectTimer = setTimeout(connect, delay);
           delay = Math.min(delay * 2, 30000);
         }
       };
@@ -46,7 +47,7 @@ function LiveCounter() {
 
     connect();
 
-    return () => { cancelled = true; ws.close(); };
+    return () => { cancelled = true; clearTimeout(reconnectTimer); ws?.close(); };
   }, []);
 
   const handleIncrement = () => {
