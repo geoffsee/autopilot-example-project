@@ -6,22 +6,14 @@ import {
   handleCounterPost,
   getNamedCount,
   handleNamedCounterPost,
+  namedCountersMigration,
 } from "./counter";
 import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
 import { runMigrations } from "./migrate";
 
 const db = createCounterDb();
 setupActivityTable(db);
-runMigrations(db, [
-  {
-    version: 1,
-    name: "create-named-counters",
-    sql: `CREATE TABLE IF NOT EXISTS named_counters (
-      name TEXT PRIMARY KEY,
-      value INTEGER NOT NULL DEFAULT 0
-    )`,
-  },
-]);
+runMigrations(db, [namedCountersMigration]);
 
 export function createServer(port?: number) {
   return serve({
@@ -59,13 +51,19 @@ export function createServer(port?: number) {
 
       "/api/counter/:name": {
         GET(req) {
-          return Response.json({ count: getNamedCount(db, req.params.name) });
+          const { name } = req.params;
+          if (!/^[\w-]{1,64}$/.test(name))
+            return Response.json({ error: "invalid counter name" }, { status: 400 });
+          return Response.json({ count: getNamedCount(db, name) });
         },
         async POST(req, server) {
+          const { name: paramName } = req.params;
+          if (!/^[\w-]{1,64}$/.test(paramName))
+            return Response.json({ error: "invalid counter name" }, { status: 400 });
           const { response, count, name } = await handleNamedCounterPost(
             req,
             db,
-            req.params.name
+            paramName
           );
           if (response.ok && typeof count === "number" && name !== undefined) {
             server.publish("counter", JSON.stringify({ type: "counter", name, count }));

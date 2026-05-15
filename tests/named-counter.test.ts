@@ -4,11 +4,12 @@ import { serve } from "bun";
 import {
   setupCounter,
   getCounterValue,
-  setupNamedCounters,
   getNamedCount,
   incrementNamedCounter,
   handleNamedCounterPost,
+  namedCountersMigration,
 } from "../src/counter";
+import { runMigrations } from "../src/migrate";
 
 // --- Unit tests ---
 
@@ -17,7 +18,7 @@ let db: Database;
 beforeEach(() => {
   db = new Database(":memory:");
   setupCounter(db);
-  setupNamedCounters(db);
+  runMigrations(db, [namedCountersMigration]);
 });
 
 afterEach(() => {

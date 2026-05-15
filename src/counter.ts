@@ -1,4 +1,5 @@
 import { Database } from "bun:sqlite";
+import type { Migration } from "./migrate";
 
 export function createCounterDb(path = "counter.db"): Database {
   const db = new Database(path);
@@ -38,14 +39,14 @@ export function getCounterValue(db: Database): number {
 
 // --- Named counter support ---
 
-export function setupNamedCounters(db: Database): void {
-  db.run(
-    `CREATE TABLE IF NOT EXISTS named_counters (
-      name TEXT PRIMARY KEY,
-      value INTEGER NOT NULL DEFAULT 0
-    )`
-  );
-}
+export const namedCountersMigration: Migration = {
+  version: 1,
+  name: "create-named-counters",
+  sql: `CREATE TABLE IF NOT EXISTS named_counters (
+    name TEXT PRIMARY KEY,
+    value INTEGER NOT NULL DEFAULT 0
+  )`,
+};
 
 export function getNamedCount(db: Database, name: string): number {
   const row = db

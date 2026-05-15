@@ -21,8 +21,10 @@ export function runMigrations(db: Database, migrations: Migration[]): void {
 
   for (const m of [...migrations].sort((a, b) => a.version - b.version)) {
     if (!applied.has(m.version)) {
-      db.run(m.sql);
-      db.run("INSERT INTO _migrations (version, name) VALUES (?, ?)", [m.version, m.name]);
+      db.transaction(() => {
+        db.run(m.sql);
+        db.run("INSERT INTO _migrations (version, name) VALUES (?, ?)", [m.version, m.name]);
+      })();
     }
   }
 }
