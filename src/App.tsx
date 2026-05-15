@@ -26,15 +26,31 @@ function WsProvider({ children }: { children: React.ReactNode }) {
   const handlersRef = useRef<Set<(msg: WsMessage) => void>>(new Set());
 
   useEffect(() => {
-    const proto = location.protocol === "https:" ? "wss" : "ws";
-    const ws = new WebSocket(`${proto}://${location.host}/ws`);
-    ws.onopen = () => setConnected(true);
-    ws.onmessage = (event) => {
-      const msg = JSON.parse(event.data as string) as WsMessage;
-      handlersRef.current.forEach((h) => h(msg));
-    };
-    ws.onclose = () => setConnected(false);
-    return () => ws.close();
+    let ws: WebSocket;
+    let delay = 1000;
+    let cancelled = false;
+
+    function connect() {
+      const proto = location.protocol === "https:" ? "wss" : "ws";
+      ws = new WebSocket(`${proto}://${location.host}/ws`);
+      ws.onopen = () => { setConnected(true); delay = 1000; };
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data as string) as WsMessage;
+          handlersRef.current.forEach((h) => h(msg));
+        } catch { /* ignore malformed frames */ }
+      };
+      ws.onclose = () => {
+        setConnected(false);
+        if (!cancelled) {
+          setTimeout(connect, delay);
+          delay = Math.min(delay * 2, 30_000);
+        }
+      };
+    }
+
+    connect();
+    return () => { cancelled = true; ws.close(); };
   }, []);
 
   const subscribe = useCallback((handler: (msg: WsMessage) => void) => {
@@ -51,8 +67,9 @@ function LiveCounter() {
 
   useEffect(() => {
     fetch("/api/counter")
-      .then((r) => r.json())
-      .then((data: { count: number }) => setCount(data.count));
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then((data: { count: number }) => setCount(data.count))
+      .catch((err) => console.error("Failed to fetch counter", err));
   }, []);
 
   useEffect(() => {
@@ -62,7 +79,7 @@ function LiveCounter() {
   }, [subscribe]);
 
   const handleIncrement = () => {
-    fetch("/api/counter", { method: "POST" });
+    fetch("/api/counter", { method: "POST" }).catch((err) => console.error("Increment failed", err));
   };
 
   return (
