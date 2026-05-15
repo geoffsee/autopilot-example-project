@@ -1,9 +1,11 @@
 import { serve } from "bun";
+import { Database } from "bun:sqlite";
 import index from "./index.html";
-import { createCounterDb } from "./counter";
+import { setupCounter } from "./counter";
 import { makeCounterRoutes } from "./counter-routes";
 
-const db = createCounterDb();
+const db = new Database("counter.db");
+setupCounter(db);
 
 const server = serve({
   routes: {

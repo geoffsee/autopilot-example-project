@@ -1,8 +1,10 @@
 import { expect, test, beforeAll, afterAll } from "bun:test";
 import { serve } from "bun";
-import { createCounterDb, getCount, increment } from "../src/counter";
+import { Database } from "bun:sqlite";
+import { setupCounter, getCounterValue, handleCounterPost } from "../src/counter";
 
-const db = createCounterDb(":memory:");
+const db = new Database(":memory:");
+setupCounter(db);
 let testServer: ReturnType<typeof serve>;
 
 beforeAll(() => {
@@ -11,12 +13,17 @@ beforeAll(() => {
     routes: {
       "/api/counter": {
         GET(_req) {
-          return Response.json({ count: getCount(db) });
+          return Response.json({ count: getCounterValue(db) });
         },
-        async POST(_req, server) {
-          const count = increment(db);
-          server.publish("counter", JSON.stringify({ type: "counter", count }));
-          return Response.json({ count }, { status: 200 });
+        async POST(req, server) {
+          const res = await handleCounterPost(req, db);
+          if (res.status === 200) {
+            server.publish(
+              "counter",
+              JSON.stringify({ type: "counter", count: getCounterValue(db) })
+            );
+          }
+          return res;
         },
       },
       "/ws": (req, server) => {
