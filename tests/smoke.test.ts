@@ -1,5 +1,37 @@
-import { expect, test } from "bun:test";
+import { beforeAll, afterAll, test, expect } from "bun:test";
+import { createServer } from "../src/index";
 
-test("smoke", () => {
-  expect(1 + 1).toBe(2);
+let server: ReturnType<typeof createServer>;
+let baseUrl: string;
+
+beforeAll(() => {
+  server = createServer(0);
+  baseUrl = server.url.origin;
+});
+
+afterAll(async () => {
+  await server.stop();
+});
+
+test("GET /api/hello returns { message: string }", async () => {
+  const res = await fetch(`${baseUrl}/api/hello`);
+  expect(res.status).toBe(200);
+  const body = (await res.json()) as { message: string; method: string };
+  expect(body.message).toBe("Hello, world!");
+  expect(body.method).toBe("GET");
+});
+
+test("PUT /api/hello returns { message: string }", async () => {
+  const res = await fetch(`${baseUrl}/api/hello`, { method: "PUT" });
+  expect(res.status).toBe(200);
+  const body = (await res.json()) as { message: string; method: string };
+  expect(body.message).toBe("Hello, world!");
+  expect(body.method).toBe("PUT");
+});
+
+test("GET /api/hello/:name returns greeting for name", async () => {
+  const res = await fetch(`${baseUrl}/api/hello/caretta`);
+  expect(res.status).toBe(200);
+  const body = (await res.json()) as { message: string };
+  expect(body.message).toBe("Hello, caretta!");
 });
