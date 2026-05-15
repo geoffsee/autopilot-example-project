@@ -17,6 +17,10 @@ export function getCount(db: Database): number {
 }
 
 export function increment(db: Database): number {
-  db.run("UPDATE counter SET count = count + 1 WHERE id = 1");
-  return getCount(db);
+  const row = db
+    .query<{ count: number }, []>(
+      "UPDATE counter SET count = count + 1 WHERE id = 1 RETURNING count"
+    )
+    .get();
+  return row?.count ?? 0;
 }
