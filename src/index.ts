@@ -1,7 +1,8 @@
 import { serve } from "bun";
 import { Database } from "bun:sqlite";
 import index from "./index.html";
-import { setupCounter, getCounterValue, handleCounterPost } from "./counter";
+import { setupCounter } from "./counter";
+import { makeCounterRoutes } from "./counter-routes";
 
 const db = new Database("counter.db");
 setupCounter(db);
@@ -26,14 +27,7 @@ const server = serve({
       },
     },
 
-    "/api/counter": {
-      GET(_req) {
-        return Response.json({ count: getCounterValue(db) });
-      },
-      POST(req) {
-        return handleCounterPost(req, db);
-      },
-    },
+    "/api/counter": makeCounterRoutes(db),
 
     "/api/hello/:name": async req => {
       const name = req.params.name;

@@ -5,10 +5,9 @@ export function setupCounter(db: Database): void {
     `CREATE TABLE IF NOT EXISTS counter (id INTEGER PRIMARY KEY, value INTEGER NOT NULL DEFAULT 0)`
   );
   // Migrate existing databases that still use the old column name.
-  try {
+  const cols = db.query("PRAGMA table_info(counter)").all() as { name: string }[];
+  if (cols.some(c => c.name === "count")) {
     db.run(`ALTER TABLE counter RENAME COLUMN count TO value`);
-  } catch {
-    // Column already named 'value' — no migration needed.
   }
   db.run(`INSERT OR IGNORE INTO counter (id, value) VALUES (1, 0)`);
 }
