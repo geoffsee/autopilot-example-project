@@ -7,3 +7,6 @@ dist/
 .idea/
 .vscode/
 /.env.*
+counter.db
+counter.db-wal
+counter.db-shm
