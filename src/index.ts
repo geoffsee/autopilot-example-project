@@ -1,6 +1,6 @@
 import { serve } from "bun";
 import index from "./index.html";
-import { createCounterDb, getCount, increment } from "./counter";
+import { createCounterDb, getCount, handleCounterPost } from "./counter";
 import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
 
 const db = createCounterDb();
@@ -27,12 +27,15 @@ const server = serve({
       GET(_req) {
         return Response.json({ count: getCount(db) });
       },
-      async POST(_req, server) {
-        const count = increment(db);
-        server.publish("counter", JSON.stringify({ type: "counter", count }));
-        const entry = logActivity(db, "counter.increment");
-        server.publish("activity", JSON.stringify({ type: "activity", entry }));
-        return Response.json({ count }, { status: 200 });
+      async POST(req, server) {
+        const response = await handleCounterPost(req, db);
+        if (response.ok) {
+          const count = getCount(db);
+          server.publish("counter", JSON.stringify({ type: "counter", count }));
+          const entry = logActivity(db, "counter.increment");
+          server.publish("activity", JSON.stringify({ type: "activity", entry }));
+        }
+        return response;
       },
     },
 
@@ -53,7 +56,7 @@ const server = serve({
       ws.subscribe("counter");
       ws.subscribe("activity");
       const entries = getRecentActivity(db);
-      ws.send(JSON.stringify({ type: "activity_history", entries: [...entries].reverse() }));
+      ws.send(JSON.stringify({ type: "activity_history", entries }));
     },
     message(_ws, _msg) {},
     close(ws) {

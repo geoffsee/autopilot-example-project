@@ -4,7 +4,7 @@ import "./index.css";
 import logo from "./logo.svg";
 import reactLogo from "./react.svg";
 
-type ActivityEntry = { action: string; timestamp: string };
+type ActivityEntry = { id: number; action: string; timestamp: string };
 
 type WsMessage =
   | { type: "counter"; count: number }
@@ -105,7 +105,7 @@ function ActivityFeed() {
           <li className="empty">No activity yet</li>
         ) : (
           entries.map((e) => (
-            <li key={e.timestamp + e.action}>
+            <li key={e.id}>
               <span className="action">{e.action}</span>
               <span className="timestamp">{new Date(e.timestamp).toLocaleTimeString()}</span>
             </li>

@@ -1,6 +1,6 @@
 import { Database } from "bun:sqlite";
 
-export type ActivityEntry = { action: string; timestamp: string };
+export type ActivityEntry = { id: number; action: string; timestamp: string };
 
 export function setupActivityTable(db: Database): void {
   db.run(`
@@ -14,14 +14,14 @@ export function setupActivityTable(db: Database): void {
 
 export function logActivity(db: Database, action: string): ActivityEntry {
   const timestamp = new Date().toISOString();
-  db.run("INSERT INTO activity (action, timestamp) VALUES (?, ?)", [action, timestamp]);
-  return { action, timestamp };
+  const result = db.run("INSERT INTO activity (action, timestamp) VALUES (?, ?)", [action, timestamp]);
+  return { id: Number(result.lastInsertRowid), action, timestamp };
 }
 
 export function getRecentActivity(db: Database, limit = 20): ActivityEntry[] {
   return db
     .query<ActivityEntry, [number]>(
-      "SELECT action, timestamp FROM activity ORDER BY id DESC LIMIT ?"
+      "SELECT id, action, timestamp FROM activity ORDER BY id DESC LIMIT ?"
     )
     .all(limit);
 }

@@ -10,7 +10,7 @@ export function getCount(db: Database): number {
   return getCounterValue(db);
 }
 
-export function increment(db: Database): number {
+export function incrementCounter(db: Database): number {
   db.run("UPDATE counter SET value = value + 1 WHERE id = 1");
   return getCounterValue(db);
 }

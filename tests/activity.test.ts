@@ -1,6 +1,6 @@
 import { expect, test, beforeAll, afterAll } from "bun:test";
 import { serve } from "bun";
-import { createCounterDb, increment } from "../src/counter";
+import { createCounterDb, incrementCounter } from "../src/counter";
 import { setupActivityTable, logActivity, getRecentActivity } from "../src/activity";
 
 // Unit tests for activity DB functions
@@ -57,7 +57,7 @@ beforeAll(() => {
           return Response.json({ count: 0 });
         },
         async POST(_req, server) {
-          const count = increment(db);
+          const count = incrementCounter(db);
           server.publish("counter", JSON.stringify({ type: "counter", count }));
           const entry = logActivity(db, "counter.increment");
           server.publish("activity", JSON.stringify({ type: "activity", entry }));
@@ -79,7 +79,7 @@ beforeAll(() => {
         ws.subscribe("counter");
         ws.subscribe("activity");
         const entries = getRecentActivity(db);
-        ws.send(JSON.stringify({ type: "activity_history", entries: [...entries].reverse() }));
+        ws.send(JSON.stringify({ type: "activity_history", entries }));
       },
       message(_ws, _msg) {},
       close(ws) {
@@ -104,10 +104,14 @@ test("GET /api/activity returns empty entries initially", async () => {
 });
 
 test("POST /api/counter creates an activity entry", async () => {
+  const baselineRes = await fetch(`${baseUrl}/api/activity`);
+  const { entries: baseline } = await baselineRes.json() as { entries: unknown[] };
+  const baselineCount = baseline.length;
+
   await fetch(`${baseUrl}/api/counter`, { method: "POST" });
   const res = await fetch(`${baseUrl}/api/activity`);
   const body = await res.json() as { entries: { action: string; timestamp: string }[] };
-  expect(body.entries).toHaveLength(1);
+  expect(body.entries).toHaveLength(baselineCount + 1);
   expect(body.entries[0]!.action).toBe("counter.increment");
   expect(typeof body.entries[0]!.timestamp).toBe("string");
 });
