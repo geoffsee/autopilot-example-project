@@ -24,7 +24,8 @@ export async function getAgentHistory(limit = 20): Promise<CommitEntry[]> {
   try {
     const result = await $`git log -n ${limit} --format=%H%x1f%an%x1f%aI%x1f%s`.text();
     return parseGitLog(result);
-  } catch {
+  } catch (err) {
+    console.error("git log failed", err);
     return [];
   }
 }
