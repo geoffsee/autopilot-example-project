@@ -1,7 +1,8 @@
 import { expect, test, beforeAll, afterAll } from "bun:test";
 import { serve } from "bun";
 import { Database } from "bun:sqlite";
-import { setupCounter, getCounterValue, handleCounterPost } from "../src/counter";
+import { setupCounter } from "../src/counter";
+import { makeCounterRoutes } from "../src/counter-routes";
 
 const db = new Database(":memory:");
 setupCounter(db);
@@ -11,21 +12,7 @@ beforeAll(() => {
   testServer = serve({
     port: 0,
     routes: {
-      "/api/counter": {
-        GET(_req) {
-          return Response.json({ count: getCounterValue(db) });
-        },
-        async POST(req, server) {
-          const res = await handleCounterPost(req, db);
-          if (res.status === 200) {
-            server.publish(
-              "counter",
-              JSON.stringify({ type: "counter", count: getCounterValue(db) })
-            );
-          }
-          return res;
-        },
-      },
+      "/api/counter": makeCounterRoutes(db),
       "/ws": (req, server) => {
         if (server.upgrade(req, { data: undefined })) return;
         return new Response("WebSocket upgrade failed", { status: 400 });

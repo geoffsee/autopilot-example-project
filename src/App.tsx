@@ -19,20 +19,34 @@ function LiveCounter() {
   }, []);
 
   useEffect(() => {
-    const proto = location.protocol === "https:" ? "wss" : "ws";
-    const ws = new WebSocket(`${proto}://${location.host}/ws`);
+    let ws: WebSocket;
+    let delay = 1000;
+    let cancelled = false;
 
-    ws.onopen = () => setConnected(true);
-    ws.onerror = (e) => console.error("WebSocket error", e);
-    ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data as string) as { type: string; count: number };
-        if (msg.type === "counter") setCount(msg.count);
-      } catch { /* ignore malformed frames */ }
-    };
-    ws.onclose = () => setConnected(false);
+    function connect() {
+      const proto = location.protocol === "https:" ? "wss" : "ws";
+      ws = new WebSocket(`${proto}://${location.host}/ws`);
 
-    return () => ws.close();
+      ws.onopen = () => { setConnected(true); delay = 1000; };
+      ws.onerror = (e) => console.error("WebSocket error", e);
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data as string) as { type: string; count: number };
+          if (msg.type === "counter") setCount(msg.count);
+        } catch { /* ignore malformed frames */ }
+      };
+      ws.onclose = () => {
+        setConnected(false);
+        if (!cancelled) {
+          setTimeout(connect, delay);
+          delay = Math.min(delay * 2, 30000);
+        }
+      };
+    }
+
+    connect();
+
+    return () => { cancelled = true; ws.close(); };
   }, []);
 
   const handleIncrement = () => {
