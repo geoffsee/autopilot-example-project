@@ -4,7 +4,6 @@ type RouteEntry = {
   path: string;
   method: HttpMethod;
   summary: string;
-  description?: string;
 };
 
 // Bun uses :param syntax; OpenAPI uses {param}
@@ -25,10 +24,13 @@ const ROUTE_MANIFEST: RouteEntry[] = [
   { path: "/api/spec", method: "get", summary: "Get the OpenAPI 3.1 specification" },
 ];
 
+type OperationObject = { summary: string; responses: Record<string, { description: string }> };
+type PathItemObject = Partial<Record<HttpMethod, OperationObject>>;
+
 export type OpenApiDoc = {
   openapi: string;
   info: { title: string; version: string };
-  paths: Record<string, Partial<Record<HttpMethod, { summary: string; responses: Record<string, { description: string }> }>>>;
+  paths: Record<string, PathItemObject>;
 };
 
 function buildSpec(): OpenApiDoc {
