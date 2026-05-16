@@ -14,13 +14,17 @@ export function runMigrations(db: Database, migrationsDir?: string): void {
     .filter(f => f.endsWith(".sql"))
     .sort();
 
+  const applyMigration = db.transaction((ver: string, sql: string) => {
+    db.exec(sql);
+    db.run("INSERT INTO _migrations (version) VALUES (?)", [ver]);
+  });
+
   for (const file of files) {
     const version = file.replace(/\.sql$/, "");
     const already = db.query("SELECT 1 FROM _migrations WHERE version = ?").get(version);
     if (already) continue;
 
     const sql = readFileSync(join(dir, file), "utf8");
-    db.exec(sql);
-    db.run("INSERT INTO _migrations (version) VALUES (?)", [version]);
+    applyMigration(version, sql);
   }
 }
