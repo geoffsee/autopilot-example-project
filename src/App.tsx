@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useContext, createContext, useCallback } from "react";
+import React, { useState, useEffect, useRef, useContext, createContext, useCallback, FormEvent } from "react";
 import "./index.css";
 
 import logo from "./logo.svg";
@@ -135,6 +135,89 @@ function ActivityFeed() {
   );
 }
 
+type Todo = { id: number; title: string; completed: number; created_at: string };
+
+function TodoList() {
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const [input, setInput] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/todos")
+      .then((r) => r.json())
+      .then((data: { todos: Todo[] }) => setTodos(data.todos))
+      .catch(() => setError("Failed to load todos"));
+  }, []);
+
+  const handleAdd = async (e: FormEvent) => {
+    e.preventDefault();
+    const title = input.trim();
+    if (!title) return;
+    const res = await fetch("/api/todos", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title }),
+    });
+    if (!res.ok) return;
+    const data = (await res.json()) as { todo: Todo };
+    setTodos((prev) => [...prev, data.todo]);
+    setInput("");
+  };
+
+  const handleToggle = async (todo: Todo) => {
+    const res = await fetch(`/api/todos/${todo.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ completed: todo.completed ? 0 : 1 }),
+    });
+    if (!res.ok) return;
+    const data = (await res.json()) as { todo: Todo };
+    setTodos((prev) => prev.map((t) => (t.id === todo.id ? data.todo : t)));
+  };
+
+  const handleDelete = async (id: number) => {
+    const res = await fetch(`/api/todos/${id}`, { method: "DELETE" });
+    if (!res.ok) return;
+    setTodos((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  return (
+    <div className="todo-list">
+      <h2>Todos</h2>
+      {error && <p className="error">{error}</p>}
+      <form onSubmit={handleAdd} style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="New todo..."
+          style={{ flex: 1, padding: "0.4rem 0.6rem" }}
+        />
+        <button type="submit">Add</button>
+      </form>
+      <ul style={{ listStyle: "none", padding: 0 }}>
+        {todos.length === 0 ? (
+          <li style={{ opacity: 0.5 }}>No todos yet</li>
+        ) : (
+          todos.map((todo) => (
+            <li key={todo.id} style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.4rem" }}>
+              <input
+                type="checkbox"
+                checked={todo.completed === 1}
+                onChange={() => handleToggle(todo)}
+              />
+              <span style={{ flex: 1, textDecoration: todo.completed ? "line-through" : "none", opacity: todo.completed ? 0.5 : 1 }}>
+                {todo.title}
+              </span>
+              <button onClick={() => handleDelete(todo.id)} aria-label="Delete">✕</button>
+            </li>
+          ))
+        )}
+      </ul>
+    </div>
+  );
+}
+
 export function App() {
   return (
     <WsProvider>
@@ -147,6 +230,7 @@ export function App() {
         <h1>Bun + React</h1>
         <p>Deployed to GitHub Pages.</p>
         <LiveCounter />
+        <TodoList />
         <ActivityFeed />
       </div>
     </WsProvider>

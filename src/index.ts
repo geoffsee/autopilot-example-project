@@ -4,6 +4,7 @@ import index from "./index.html";
 import { getCount, handleCounterPost } from "./counter";
 import { logActivity, getRecentActivity } from "./activity";
 import { runMigrations } from "./db/migrate";
+import { handleGetTodos, handleCreateTodo, handleUpdateTodo, handleDeleteTodo } from "./todo-routes";
 
 const db = new Database("counter.db");
 runMigrations(db);
@@ -46,6 +47,26 @@ export function createServer(port?: number) {
         GET(_req) {
           return Response.json({ entries: getRecentActivity(db) });
         },
+      },
+
+      "/api/todos": {
+        GET(_req) {
+          return handleGetTodos(db);
+        },
+        async POST(req) {
+          return handleCreateTodo(req, db);
+        },
+      },
+
+      "/api/todos/:id": async (req) => {
+        const id = parseInt(req.params.id, 10);
+        if (req.method === "PATCH") {
+          return handleUpdateTodo(req, db, id);
+        }
+        if (req.method === "DELETE") {
+          return handleDeleteTodo(db, id);
+        }
+        return new Response("Method Not Allowed", { status: 405 });
       },
 
       "/ws": (req, server) => {
