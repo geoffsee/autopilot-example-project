@@ -12,7 +12,8 @@ function toOpenApiPath(bunPath: string): string {
   return bunPath.replace(/:([^/]+)/g, "{$1}");
 }
 
-// Keep in sync with routes declared in src/index.ts
+// Keep in sync with routes declared in src/index.ts.
+// Divergence is caught by the EXPECTED_METHODS assertions in tests/spec.test.ts.
 const ROUTE_MANIFEST: RouteEntry[] = [
   { path: "/api/hello", method: "get", summary: "Return a hello greeting" },
   { path: "/api/hello", method: "put", summary: "Return a hello greeting via PUT" },

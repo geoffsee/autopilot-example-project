@@ -44,6 +44,26 @@ test("GET /api/spec covers all expected paths", async () => {
   }
 });
 
+// Explicit per-path method expectations so dropping any route from the manifest
+// is caught by CI rather than discovered at runtime.
+const EXPECTED_METHODS: Record<string, string[]> = {
+  "/api/hello": ["get", "put"],
+  "/api/hello/{name}": ["get"],
+  "/api/counter": ["get", "post"],
+  "/api/activity": ["get"],
+  "/api/spec": ["get"],
+};
+
+test("GET /api/spec exposes the correct HTTP methods for each path", async () => {
+  const res = await fetch(`${baseUrl}/api/spec`);
+  const doc = await res.json() as { paths: Record<string, Record<string, unknown>> };
+  for (const [path, methods] of Object.entries(EXPECTED_METHODS)) {
+    for (const method of methods) {
+      expect(doc.paths[path]).toHaveProperty(method);
+    }
+  }
+});
+
 test("GET /api/spec paths have at least one method with a 200 response", async () => {
   const res = await fetch(`${baseUrl}/api/spec`);
   const doc = await res.json() as { paths: Record<string, Record<string, { responses: Record<string, unknown> }>> };
