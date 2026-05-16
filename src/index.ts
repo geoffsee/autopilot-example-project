@@ -3,13 +3,15 @@ import index from "./index.html";
 import { createCounterDb, getCount, handleCounterPost } from "./counter";
 import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
 import { setupApiKeysTable, requireApiKey } from "./auth";
+import { RateLimiter, createRateLimiter, applyRateLimit } from "./rate-limit";
 import openapiSpec from "./openapi.json";
 
 const db = createCounterDb();
 setupActivityTable(db);
 setupApiKeysTable(db);
 
-export function createServer(port?: number) {
+export function createServer(port?: number, rateLimiter?: RateLimiter) {
+  const limiter = rateLimiter ?? createRateLimiter();
   return serve({
     port,
     routes: {
@@ -33,6 +35,9 @@ export function createServer(port?: number) {
           return Response.json({ count: getCount(db) });
         },
         async POST(req, server) {
+          const ip = server.requestIP(req)?.address ?? "unknown";
+          const rateError = applyRateLimit(limiter, ip);
+          if (rateError) return rateError;
           const authError = requireApiKey(req, db);
           if (authError) return authError;
           const { response, count } = await handleCounterPost(req, db);
