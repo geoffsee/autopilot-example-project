@@ -1,7 +1,7 @@
 import { serve } from "bun";
 import index from "./index.html";
 import { createCounterDb, getCount, handleCounterPost } from "./counter";
-import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
+import { setupActivityTable, logActivity, getRecentActivity, getActivityCount } from "./activity";
 
 const db = createCounterDb();
 setupActivityTable(db);
@@ -43,6 +43,19 @@ export function createServer(port?: number) {
       "/api/activity": {
         GET(_req) {
           return Response.json({ entries: getRecentActivity(db) });
+        },
+      },
+
+      "/api/counter/history": {
+        GET(req) {
+          const url = new URL(req.url);
+          const rawLimit = parseInt(url.searchParams.get("limit") ?? "20", 10);
+          const rawOffset = parseInt(url.searchParams.get("offset") ?? "0", 10);
+          const limit = !isNaN(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 100) : 20;
+          const offset = !isNaN(rawOffset) && rawOffset >= 0 ? rawOffset : 0;
+          const entries = getRecentActivity(db, limit, offset);
+          const total = getActivityCount(db);
+          return Response.json({ entries, total, limit, offset });
         },
       },
 

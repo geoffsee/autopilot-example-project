@@ -94,26 +94,50 @@ function LiveCounter() {
   );
 }
 
+const PAGE_SIZE = 20;
+
 function ActivityFeed() {
   const [entries, setEntries] = useState<ActivityEntry[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
   const { connected, subscribe } = useContext(WsContext);
   const listRef = useRef<HTMLUListElement>(null);
+
+  const fetchPage = useCallback(async (offset: number) => {
+    const res = await fetch(`/api/counter/history?limit=${PAGE_SIZE}&offset=${offset}`);
+    if (!res.ok) return;
+    const data = await res.json() as { entries: ActivityEntry[]; total: number };
+    setTotal(data.total);
+    return data.entries;
+  }, []);
+
+  useEffect(() => {
+    fetchPage(0).then((page) => { if (page) setEntries(page); });
+  }, [fetchPage]);
 
   useEffect(() => {
     return subscribe((msg) => {
       if (msg.type === "activity_history") {
         setEntries(msg.entries);
+        setTotal(msg.entries.length);
       } else if (msg.type === "activity") {
-        setEntries((prev) => [msg.entry, ...prev].slice(0, 50));
+        setEntries((prev) => [msg.entry, ...prev]);
+        setTotal((t) => t + 1);
       }
     });
   }, [subscribe]);
 
-  useEffect(() => {
-    if (listRef.current) {
-      listRef.current.scrollTop = 0;
+  const handleLoadMore = async () => {
+    setLoadingMore(true);
+    try {
+      const page = await fetchPage(entries.length);
+      if (page) setEntries((prev) => [...prev, ...page]);
+    } finally {
+      setLoadingMore(false);
     }
-  }, [entries]);
+  };
+
+  const hasMore = entries.length < total;
 
   return (
     <div className="activity-feed">
@@ -131,6 +155,11 @@ function ActivityFeed() {
           ))
         )}
       </ul>
+      {hasMore && (
+        <button onClick={handleLoadMore} disabled={loadingMore}>
+          {loadingMore ? "Loading…" : `Load more (${total - entries.length} remaining)`}
+        </button>
+      )}
     </div>
   );
 }

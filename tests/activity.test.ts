@@ -1,7 +1,7 @@
 import { expect, test, beforeAll, afterAll } from "bun:test";
 import { serve } from "bun";
 import { createCounterDb, handleCounterPost } from "../src/counter";
-import { setupActivityTable, logActivity, getRecentActivity } from "../src/activity";
+import { setupActivityTable, logActivity, getRecentActivity, getActivityCount } from "../src/activity";
 
 // Unit tests for activity DB functions
 test("getRecentActivity returns empty array on fresh DB", () => {
@@ -41,6 +41,29 @@ test("getRecentActivity respects limit", () => {
   db.close();
 });
 
+test("getRecentActivity with offset skips entries", () => {
+  const db = createCounterDb(":memory:");
+  setupActivityTable(db);
+  for (let i = 0; i < 5; i++) logActivity(db, `action.${i}`);
+  const page1 = getRecentActivity(db, 2, 0);
+  const page2 = getRecentActivity(db, 2, 2);
+  expect(page1[0]!.action).toBe("action.4");
+  expect(page1[1]!.action).toBe("action.3");
+  expect(page2[0]!.action).toBe("action.2");
+  expect(page2[1]!.action).toBe("action.1");
+  db.close();
+});
+
+test("getActivityCount returns total entry count", () => {
+  const db = createCounterDb(":memory:");
+  setupActivityTable(db);
+  expect(getActivityCount(db)).toBe(0);
+  logActivity(db, "a");
+  logActivity(db, "b");
+  expect(getActivityCount(db)).toBe(2);
+  db.close();
+});
+
 // HTTP integration tests
 let baseUrl: string;
 let server: ReturnType<typeof serve>;
@@ -69,6 +92,18 @@ beforeAll(() => {
       "/api/activity": {
         GET(_req) {
           return Response.json({ entries: getRecentActivity(db) });
+        },
+      },
+      "/api/counter/history": {
+        GET(req) {
+          const url = new URL(req.url);
+          const rawLimit = parseInt(url.searchParams.get("limit") ?? "20", 10);
+          const rawOffset = parseInt(url.searchParams.get("offset") ?? "0", 10);
+          const limit = !isNaN(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 100) : 20;
+          const offset = !isNaN(rawOffset) && rawOffset >= 0 ? rawOffset : 0;
+          const entries = getRecentActivity(db, limit, offset);
+          const total = getActivityCount(db);
+          return Response.json({ entries, total, limit, offset });
         },
       },
       "/ws": (req, server) => {
@@ -216,4 +251,47 @@ test("POST /api/counter rejects negative increment", async () => {
     body: JSON.stringify({ increment: -1 }),
   });
   expect(res.status).toBe(400);
+});
+
+test("GET /api/counter/history returns default page with total", async () => {
+  const res = await fetch(`${baseUrl}/api/counter/history`);
+  expect(res.status).toBe(200);
+  const body = await res.json() as { entries: unknown[]; total: number; limit: number; offset: number };
+  expect(Array.isArray(body.entries)).toBe(true);
+  expect(typeof body.total).toBe("number");
+  expect(body.limit).toBe(20);
+  expect(body.offset).toBe(0);
+});
+
+test("GET /api/counter/history?limit=2 returns at most 2 entries", async () => {
+  await fetch(`${baseUrl}/api/counter`, { method: "POST" });
+  await fetch(`${baseUrl}/api/counter`, { method: "POST" });
+  await fetch(`${baseUrl}/api/counter`, { method: "POST" });
+
+  const res = await fetch(`${baseUrl}/api/counter/history?limit=2`);
+  expect(res.status).toBe(200);
+  const body = await res.json() as { entries: unknown[]; total: number; limit: number; offset: number };
+  expect(body.entries.length).toBeLessThanOrEqual(2);
+  expect(body.limit).toBe(2);
+  expect(body.total).toBeGreaterThanOrEqual(3);
+});
+
+test("GET /api/counter/history?limit=2&offset=1 skips first entry", async () => {
+  const allRes = await fetch(`${baseUrl}/api/counter/history?limit=100`);
+  const allBody = await allRes.json() as { entries: { id: number }[]; total: number };
+  if (allBody.total < 2) {
+    await fetch(`${baseUrl}/api/counter`, { method: "POST" });
+    await fetch(`${baseUrl}/api/counter`, { method: "POST" });
+  }
+
+  const page0Res = await fetch(`${baseUrl}/api/counter/history?limit=2&offset=0`);
+  const page0 = await page0Res.json() as { entries: { id: number }[] };
+
+  const page1Res = await fetch(`${baseUrl}/api/counter/history?limit=2&offset=1`);
+  const page1 = await page1Res.json() as { entries: { id: number }[]; offset: number };
+
+  expect(page1.offset).toBe(1);
+  if (page0.entries.length >= 2 && page1.entries.length >= 1) {
+    expect(page1.entries[0]!.id).toBe(page0.entries[1]!.id);
+  }
 });

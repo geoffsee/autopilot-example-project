@@ -18,10 +18,15 @@ export function logActivity(db: Database, action: string): ActivityEntry {
   return { id: Number(result.lastInsertRowid), action, timestamp };
 }
 
-export function getRecentActivity(db: Database, limit = 20): ActivityEntry[] {
+export function getRecentActivity(db: Database, limit = 20, offset = 0): ActivityEntry[] {
   return db
-    .query<ActivityEntry, [number]>(
-      "SELECT id, action, timestamp FROM activity ORDER BY id DESC LIMIT ?"
+    .query<ActivityEntry, [number, number]>(
+      "SELECT id, action, timestamp FROM activity ORDER BY id DESC LIMIT ? OFFSET ?"
     )
-    .all(limit);
+    .all(limit, offset);
+}
+
+export function getActivityCount(db: Database): number {
+  const row = db.query<{ count: number }, []>("SELECT COUNT(*) as count FROM activity").get();
+  return row?.count ?? 0;
 }
