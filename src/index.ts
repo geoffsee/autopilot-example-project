@@ -1,12 +1,21 @@
 import { serve } from "bun";
 import index from "./index.html";
-import { createCounterDb, getCount, handleCounterPost, resetCounter } from "./counter";
+import { Database } from "bun:sqlite";
+import {
+  createCounterDb,
+  getCount,
+  handleCounterPost,
+  resetCounter,
+  setupNamedCounters,
+  getNamedCount,
+  handleNamedCounterPost,
+} from "./counter";
 import { setupActivityTable, logActivity, getRecentActivity, clearActivity } from "./activity";
 
-const db = createCounterDb();
-setupActivityTable(db);
-
-export function createServer(port?: number) {
+export function createServer(port?: number, database?: Database) {
+  const db = database ?? createCounterDb();
+  setupActivityTable(db);
+  setupNamedCounters(db);
   return serve({
     port,
     routes: {
@@ -46,6 +55,23 @@ export function createServer(port?: number) {
           clearActivity(db);
           server.publish("counter", JSON.stringify({ type: "counter", count: 0 }));
           return Response.json({ count: 0 });
+        },
+      },
+
+      "/api/counter/:name": {
+        GET(req) {
+          const { name } = req.params;
+          return Response.json({ name, count: getNamedCount(db, name) });
+        },
+        async POST(req, server) {
+          const { name } = req.params;
+          const { response, count } = await handleNamedCounterPost(req, db, name);
+          if (response.ok && typeof count === "number") {
+            server.publish("counter", JSON.stringify({ type: "counter", name, count }));
+            const entry = logActivity(db, `counter.increment.${name}`);
+            server.publish("activity", JSON.stringify({ type: "activity", entry }));
+          }
+          return response;
         },
       },
 

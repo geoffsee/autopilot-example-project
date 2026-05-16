@@ -41,6 +41,90 @@ export function getCounterValue(db: Database): number {
   return row?.value ?? 0;
 }
 
+export function setupNamedCounters(db: Database): void {
+  db.run(`
+    CREATE TABLE IF NOT EXISTS named_counters (
+      name  TEXT PRIMARY KEY,
+      value INTEGER NOT NULL DEFAULT 0
+    )
+  `);
+}
+
+export function getNamedCount(db: Database, name: string): number {
+  const row = db
+    .query("SELECT value FROM named_counters WHERE name = ?")
+    .get(name) as { value: number } | null;
+  return row?.value ?? 0;
+}
+
+export function incrementNamedCounter(db: Database, name: string, amount: number): number {
+  db.run("INSERT OR IGNORE INTO named_counters (name, value) VALUES (?, 0)", [name]);
+  const row = db
+    .query("UPDATE named_counters SET value = value + ? WHERE name = ? RETURNING value")
+    .get(amount, name) as { value: number };
+  return row.value;
+}
+
+export function resetNamedCounter(db: Database, name: string): number {
+  db.run("INSERT OR IGNORE INTO named_counters (name, value) VALUES (?, 0)", [name]);
+  db.run("UPDATE named_counters SET value = 0 WHERE name = ?", [name]);
+  return 0;
+}
+
+export async function handleNamedCounterPost(
+  req: Request,
+  db: Database,
+  name: string
+): Promise<{ response: Response; count?: number }> {
+  const text = await req.text();
+  let increment = 1;
+
+  if (text.trim() !== "") {
+    const contentType = req.headers.get("content-type") ?? "";
+    if (!contentType.includes("application/json")) {
+      return {
+        response: Response.json(
+          { error: "Content-Type must be application/json" },
+          { status: 400 }
+        ),
+      };
+    }
+
+    let body: unknown;
+    try {
+      body = JSON.parse(text);
+    } catch {
+      return { response: Response.json({ error: "Invalid JSON" }, { status: 400 }) };
+    }
+
+    if (typeof body !== "object" || body === null || Array.isArray(body)) {
+      return { response: Response.json({ error: "Body must be an object" }, { status: 400 }) };
+    }
+
+    const obj = body as Record<string, unknown>;
+    if ("increment" in obj) {
+      const inc = obj.increment;
+      if (
+        typeof inc !== "number" ||
+        !Number.isInteger(inc) ||
+        inc < 0 ||
+        inc > 1_000_000
+      ) {
+        return {
+          response: Response.json(
+            { error: "increment must be a non-negative integer no greater than 1000000" },
+            { status: 400 }
+          ),
+        };
+      }
+      increment = inc;
+    }
+  }
+
+  const count = incrementNamedCounter(db, name, increment);
+  return { response: Response.json({ name, count }), count };
+}
+
 export async function handleCounterPost(
   req: Request,
   db: Database
