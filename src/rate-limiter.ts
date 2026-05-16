@@ -1,10 +1,10 @@
-interface Window {
+interface RateWindow {
   count: number;
   start: number;
 }
 
 export class RateLimiter {
-  private readonly windows = new Map<string, Window>();
+  private readonly windows = new Map<string, RateWindow>();
   readonly limit: number;
   readonly windowMs: number;
 
@@ -15,6 +15,9 @@ export class RateLimiter {
 
   check(ip: string): boolean {
     const now = Date.now();
+    for (const [key, w] of this.windows) {
+      if (now - w.start >= this.windowMs) this.windows.delete(key);
+    }
     const win = this.windows.get(ip);
     if (!win || now - win.start >= this.windowMs) {
       this.windows.set(ip, { count: 1, start: now });
