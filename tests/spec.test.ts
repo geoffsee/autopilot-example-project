@@ -39,6 +39,7 @@ test("GET /api/spec returns valid OpenAPI 3.1 document", async () => {
 test("GET /api/spec covers all expected paths", async () => {
   const res = await fetch(`${baseUrl}/api/spec`);
   const doc = await res.json() as { paths: Record<string, unknown> };
+  expect(Object.keys(doc.paths).length).toBe(EXPECTED_PATHS.length);
   for (const path of EXPECTED_PATHS) {
     expect(doc.paths).toHaveProperty(path);
   }

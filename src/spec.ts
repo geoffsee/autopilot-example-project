@@ -13,7 +13,8 @@ function toOpenApiPath(bunPath: string): string {
 }
 
 // Keep in sync with routes declared in src/index.ts.
-// Divergence is caught by the EXPECTED_METHODS assertions in tests/spec.test.ts.
+// Tests only verify that listed paths/methods appear in the spec output; they
+// do not detect routes added to index.ts but omitted from this manifest.
 const ROUTE_MANIFEST: RouteEntry[] = [
   { path: "/api/hello", method: "get", summary: "Return a hello greeting" },
   { path: "/api/hello", method: "put", summary: "Return a hello greeting via PUT" },
@@ -27,7 +28,7 @@ const ROUTE_MANIFEST: RouteEntry[] = [
 export type OpenApiDoc = {
   openapi: string;
   info: { title: string; version: string };
-  paths: Record<string, Record<string, { summary: string; responses: Record<string, { description: string }> }>>;
+  paths: Record<string, Partial<Record<HttpMethod, { summary: string; responses: Record<string, { description: string }> }>>>;
 };
 
 function buildSpec(): OpenApiDoc {
