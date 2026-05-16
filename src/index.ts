@@ -51,9 +51,12 @@ export function createServer(port?: number, database?: Database) {
 
       "/api/counter/reset": {
         POST(_req, server) {
-          resetCounter(db);
-          clearActivity(db);
+          db.transaction(() => {
+            resetCounter(db);
+            clearActivity(db);
+          })();
           server.publish("counter", JSON.stringify({ type: "counter", count: 0 }));
+          server.publish("activity", JSON.stringify({ type: "activity_clear" }));
           return Response.json({ count: 0 });
         },
       },
