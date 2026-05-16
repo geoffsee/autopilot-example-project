@@ -3,6 +3,7 @@ import index from "./index.html";
 import { createCounterDb, getCount, handleCounterPost } from "./counter";
 import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
 import { withLogging } from "./logger";
+import { getMetrics } from "./metrics";
 
 const db = createCounterDb();
 setupActivityTable(db);
@@ -37,6 +38,10 @@ export function createServer(port?: number) {
 
       "/api/activity": {
         GET: withLogging(() => Response.json({ entries: getRecentActivity(db) })),
+      },
+
+      "/api/metrics": {
+        GET: () => Response.json(getMetrics()),
       },
 
       "/ws": (req, server) => {

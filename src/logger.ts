@@ -1,4 +1,5 @@
 import type { Server } from "bun";
+import { recordRequest } from "./metrics";
 
 export interface RequestLog {
   requestId: string;
@@ -30,6 +31,7 @@ export function withLogging<Req extends Request = Request>(
       timestamp: new Date().toISOString(),
     };
     process.stdout.write(JSON.stringify(log) + "\n");
+    recordRequest(log.durationMs, log.status);
     return response;
   };
 }
