@@ -36,7 +36,7 @@ function WsProvider({ children }: { children: React.ReactNode }) {
       const proto = location.protocol === "https:" ? "wss" : "ws";
       ws = new WebSocket(`${proto}://${location.host}/ws`);
       ws.onopen = () => { setConnected(true); delay = 1000; };
-      ws.onerror = (e) => logger.error("WebSocket error", { type: (e as ErrorEvent).type });
+      ws.onerror = () => logger.error("WebSocket error");
       ws.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data as string) as WsMessage;
