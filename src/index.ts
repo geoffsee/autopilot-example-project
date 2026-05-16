@@ -53,8 +53,10 @@ export function createServer(port?: number) {
           const rawOffset = parseInt(url.searchParams.get("offset") ?? "0", 10);
           const limit = !isNaN(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 100) : 20;
           const offset = !isNaN(rawOffset) && rawOffset >= 0 ? rawOffset : 0;
-          const entries = getRecentActivity(db, limit, offset);
-          const total = getActivityCount(db);
+          const { entries, total } = db.transaction(() => ({
+            entries: getRecentActivity(db, limit, offset),
+            total: getActivityCount(db),
+          }))();
           return Response.json({ entries, total, limit, offset });
         },
       },

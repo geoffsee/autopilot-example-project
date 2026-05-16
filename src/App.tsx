@@ -102,6 +102,7 @@ function ActivityFeed() {
   const [loadingMore, setLoadingMore] = useState(false);
   const { connected, subscribe } = useContext(WsContext);
   const listRef = useRef<HTMLUListElement>(null);
+  const dbOffsetRef = useRef(0);
 
   const fetchPage = useCallback(async (offset: number) => {
     const res = await fetch(`/api/counter/history?limit=${PAGE_SIZE}&offset=${offset}`);
@@ -112,16 +113,20 @@ function ActivityFeed() {
   }, []);
 
   useEffect(() => {
-    fetchPage(0).then((page) => { if (page) setEntries(page); });
+    fetchPage(0).then((page) => {
+      if (page) {
+        setEntries(page);
+        dbOffsetRef.current = page.length;
+      }
+    });
   }, [fetchPage]);
 
   useEffect(() => {
     return subscribe((msg) => {
       if (msg.type === "activity_history") {
         setEntries(msg.entries);
-        setTotal(msg.entries.length);
       } else if (msg.type === "activity") {
-        setEntries((prev) => [msg.entry, ...prev]);
+        setEntries((prev) => [msg.entry, ...prev].slice(0, 200));
         setTotal((t) => t + 1);
       }
     });
@@ -130,8 +135,11 @@ function ActivityFeed() {
   const handleLoadMore = async () => {
     setLoadingMore(true);
     try {
-      const page = await fetchPage(entries.length);
-      if (page) setEntries((prev) => [...prev, ...page]);
+      const page = await fetchPage(dbOffsetRef.current);
+      if (page) {
+        setEntries((prev) => [...prev, ...page]);
+        dbOffsetRef.current += page.length;
+      }
     } finally {
       setLoadingMore(false);
     }
