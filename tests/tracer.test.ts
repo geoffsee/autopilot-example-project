@@ -1,4 +1,4 @@
-import { test, expect } from "bun:test";
+import { test, expect, spyOn } from "bun:test";
 import { withSpan, currentContext, initTracer } from "../src/tracer";
 
 test("initTracer runs without error", () => {
@@ -70,16 +70,18 @@ test("sequential spans each get unique traceId and spanId", async () => {
 
 test("withSpan emits OTLP JSON to stdout for each span (dev mode)", async () => {
   const written: string[] = [];
-  const orig = process.stdout.write.bind(process.stdout);
-  (process.stdout as { write: unknown }).write = (chunk: unknown) => {
+  const spy = spyOn(process.stdout, "write").mockImplementation((chunk: unknown) => {
     if (typeof chunk === "string") written.push(chunk);
     return true;
-  };
+  });
 
+  const origNodeEnv = process.env.NODE_ENV;
+  process.env.NODE_ENV = "development";
   try {
     await withSpan("test.otlp.emit", async () => {});
   } finally {
-    (process.stdout as { write: unknown }).write = orig;
+    spy.mockRestore();
+    process.env.NODE_ENV = origNodeEnv;
   }
 
   const otlpLines = written
