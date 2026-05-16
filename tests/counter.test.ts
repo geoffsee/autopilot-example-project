@@ -1,6 +1,6 @@
 import { test, expect, beforeEach, afterEach } from "bun:test";
 import { Database } from "bun:sqlite";
-import { setupCounter, getCounterValue, handleCounterPost } from "../src/counter";
+import { setupCounter, getCounterValue, handleCounterPost, resetCounter } from "../src/counter";
 
 let db: Database;
 
@@ -149,4 +149,18 @@ test("successive increments accumulate", async () => {
   await handleCounterPost(makePostRequest({ increment: 3 }), db);
   await handleCounterPost(makePostRequest({ increment: 7 }), db);
   expect(getCounterValue(db)).toBe(10);
+});
+
+// --- reset ---
+
+test("resetCounter sets counter to 0", () => {
+  db.run("UPDATE counter SET value = 42 WHERE id = 1");
+  expect(getCounterValue(db)).toBe(42);
+  resetCounter(db);
+  expect(getCounterValue(db)).toBe(0);
+});
+
+test("resetCounter returns 0", () => {
+  db.run("UPDATE counter SET value = 7 WHERE id = 1");
+  expect(resetCounter(db)).toBe(0);
 });

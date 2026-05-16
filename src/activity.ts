@@ -18,6 +18,10 @@ export function logActivity(db: Database, action: string): ActivityEntry {
   return { id: Number(result.lastInsertRowid), action, timestamp };
 }
 
+export function clearActivity(db: Database): void {
+  db.run("DELETE FROM activity");
+}
+
 export function getRecentActivity(db: Database, limit = 20): ActivityEntry[] {
   return db
     .query<ActivityEntry, [number]>(

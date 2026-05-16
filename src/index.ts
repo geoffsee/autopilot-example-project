@@ -1,7 +1,7 @@
 import { serve } from "bun";
 import index from "./index.html";
-import { createCounterDb, getCount, handleCounterPost } from "./counter";
-import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
+import { createCounterDb, getCount, handleCounterPost, resetCounter } from "./counter";
+import { setupActivityTable, logActivity, getRecentActivity, clearActivity } from "./activity";
 
 const db = createCounterDb();
 setupActivityTable(db);
@@ -37,6 +37,15 @@ export function createServer(port?: number) {
             server.publish("activity", JSON.stringify({ type: "activity", entry }));
           }
           return response;
+        },
+      },
+
+      "/api/counter/reset": {
+        POST(_req, server) {
+          resetCounter(db);
+          clearActivity(db);
+          server.publish("counter", JSON.stringify({ type: "counter", count: 0 }));
+          return Response.json({ count: 0 });
         },
       },
 

@@ -29,6 +29,11 @@ export function setupCounter(db: Database): void {
   db.run(`INSERT OR IGNORE INTO counter (id, value) VALUES (1, 0)`);
 }
 
+export function resetCounter(db: Database): number {
+  db.run("UPDATE counter SET value = 0 WHERE id = 1");
+  return 0;
+}
+
 export function getCounterValue(db: Database): number {
   const row = db.query("SELECT value FROM counter WHERE id = 1").get() as {
     value: number;
