@@ -58,10 +58,13 @@ export function getNamedCount(db: Database, name: string): number {
 }
 
 export function incrementNamedCounter(db: Database, name: string, amount: number): number {
-  db.run("INSERT OR IGNORE INTO named_counters (name, value) VALUES (?, 0)", [name]);
   const row = db
-    .query("UPDATE named_counters SET value = value + ? WHERE name = ? RETURNING value")
-    .get(amount, name) as { value: number };
+    .query(
+      `INSERT INTO named_counters (name, value) VALUES (?, ?)
+       ON CONFLICT(name) DO UPDATE SET value = value + excluded.value
+       RETURNING value`
+    )
+    .get(name, amount) as { value: number };
   return row.value;
 }
 

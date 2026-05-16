@@ -61,10 +61,16 @@ export function createServer(port?: number, database?: Database) {
       "/api/counter/:name": {
         GET(req) {
           const { name } = req.params;
+          if (!name || name.length > 100 || !/^[\w.-]+$/.test(name)) {
+            return Response.json({ error: "Invalid counter name" }, { status: 400 });
+          }
           return Response.json({ name, count: getNamedCount(db, name) });
         },
         async POST(req, server) {
           const { name } = req.params;
+          if (!name || name.length > 100 || !/^[\w.-]+$/.test(name)) {
+            return Response.json({ error: "Invalid counter name" }, { status: 400 });
+          }
           const { response, count } = await handleNamedCounterPost(req, db, name);
           if (response.ok && typeof count === "number") {
             server.publish("counter", JSON.stringify({ type: "counter", name, count }));
