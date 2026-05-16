@@ -81,7 +81,9 @@ function emitSpan(span: SpanRecord): void {
   if (!spanEmitter) return;
 
   const startNs = (BigInt(span.startTimeMs) * 1_000_000n).toString();
-  const endNs = (BigInt(span.startTimeMs) * 1_000_000n + BigInt(Math.round(span.durationMs * 1_000_000))).toString();
+  const durationNs = BigInt(Math.trunc(span.durationMs)) * 1_000_000n
+    + BigInt(Math.round((span.durationMs % 1) * 1_000_000));
+  const endNs = (BigInt(span.startTimeMs) * 1_000_000n + durationNs).toString();
 
   const otlp = {
     resourceSpans: [
