@@ -1,0 +1,236 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Autopilot Example Project API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/counter": {
+      "get": {
+        "summary": "Get current counter value",
+        "responses": {
+          "200": {
+            "description": "Current counter value",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "count": { "type": "integer" }
+                  },
+                  "required": ["count"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Increment the counter",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "increment": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Counter incremented successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "count": { "type": "integer" }
+                  },
+                  "required": ["count"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body"
+          }
+        }
+      }
+    },
+    "/api/todos": {
+      "get": {
+        "summary": "List all todos",
+        "responses": {
+          "200": {
+            "description": "Array of todo items",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "todos": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "integer" },
+                          "title": { "type": "string" },
+                          "done": { "type": "boolean" },
+                          "created_at": { "type": "string", "format": "date-time" }
+                        },
+                        "required": ["id", "title", "done", "created_at"]
+                      }
+                    }
+                  },
+                  "required": ["todos"]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a todo",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string" }
+                },
+                "required": ["title"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Todo created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "todo": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "integer" },
+                        "title": { "type": "string" },
+                        "done": { "type": "boolean" },
+                        "created_at": { "type": "string", "format": "date-time" }
+                      },
+                      "required": ["id", "title", "done", "created_at"]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Missing or invalid title" }
+        }
+      }
+    },
+    "/api/todos/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "integer" }
+        }
+      ],
+      "patch": {
+        "summary": "Update a todo",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string" },
+                  "done": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Todo updated" },
+          "404": { "description": "Todo not found" }
+        }
+      },
+      "delete": {
+        "summary": "Delete a todo",
+        "responses": {
+          "200": { "description": "Todo deleted" },
+          "404": { "description": "Todo not found" }
+        }
+      }
+    },
+    "/api/metrics": {
+      "get": {
+        "summary": "Get observability metrics",
+        "responses": {
+          "200": {
+            "description": "Request metrics snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "requests": { "type": "integer" },
+                    "errors": { "type": "integer" },
+                    "uptime_ms": { "type": "integer" }
+                  },
+                  "required": ["requests", "errors", "uptime_ms"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/activity": {
+      "get": {
+        "summary": "Get recent activity log",
+        "responses": {
+          "200": {
+            "description": "Recent activity entries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "entries": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "integer" },
+                          "action": { "type": "string" },
+                          "timestamp": { "type": "string", "format": "date-time" }
+                        },
+                        "required": ["id", "action", "timestamp"]
+                      }
+                    }
+                  },
+                  "required": ["entries"]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

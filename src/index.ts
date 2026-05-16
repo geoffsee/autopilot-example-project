@@ -2,6 +2,7 @@ import { serve } from "bun";
 import index from "./index.html";
 import { createCounterDb, getCount, handleCounterPost } from "./counter";
 import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
+import openapiSpec from "./openapi.json";
 
 const db = createCounterDb();
 setupActivityTable(db);
@@ -43,6 +44,12 @@ export function createServer(port?: number) {
       "/api/activity": {
         GET(_req) {
           return Response.json({ entries: getRecentActivity(db) });
+        },
+      },
+
+      "/api/openapi.json": {
+        GET(_req) {
+          return Response.json(openapiSpec);
         },
       },
 
