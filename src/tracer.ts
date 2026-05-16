@@ -33,6 +33,7 @@ export async function withSpan<T>(
   name: string,
   fn: (ctx: SpanContext) => Promise<T>,
   attributes?: SpanAttributes,
+  kind: number = 2,
 ): Promise<T> {
   const parent = storage.getStore();
   const traceId = parent?.traceId ?? randomHex(16);
@@ -50,7 +51,7 @@ export async function withSpan<T>(
     throw err;
   } finally {
     const durationMs = performance.now() - startPerf;
-    emitSpan({ name, traceId, spanId, parentSpanId: parent?.spanId, startTimeMs, durationMs, status, attributes });
+    emitSpan({ name, traceId, spanId, parentSpanId: parent?.spanId, startTimeMs, durationMs, status, attributes, kind });
   }
 }
 
@@ -63,10 +64,11 @@ type SpanRecord = {
   durationMs: number;
   status: "OK" | "ERROR";
   attributes?: SpanAttributes;
+  kind: number;
 };
 
 function emitSpan(span: SpanRecord): void {
-  if (process.env.NODE_ENV === "production") return;
+  if (process.env.NODE_ENV === "test") return;
 
   const startNs = (BigInt(span.startTimeMs) * 1_000_000n).toString();
   const endNs = (BigInt(Math.round(span.startTimeMs + span.durationMs)) * 1_000_000n).toString();
@@ -86,7 +88,7 @@ function emitSpan(span: SpanRecord): void {
                 spanId: span.spanId,
                 ...(span.parentSpanId ? { parentSpanId: span.parentSpanId } : {}),
                 name: span.name,
-                kind: 2, // SPAN_KIND_SERVER
+                kind: span.kind,
                 startTimeUnixNano: startNs,
                 endTimeUnixNano: endNs,
                 attributes: Object.entries(span.attributes ?? {}).map(([k, v]) => ({
@@ -99,7 +101,6 @@ function emitSpan(span: SpanRecord): void {
                         : { stringValue: String(v) },
                 })),
                 status: { code: span.status === "OK" ? 1 : 2 },
-                durationMs: span.durationMs,
               },
             ],
           },

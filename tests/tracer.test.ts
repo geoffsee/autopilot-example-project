@@ -1,4 +1,4 @@
-import { test, expect, beforeEach } from "bun:test";
+import { test, expect } from "bun:test";
 import { withSpan, currentContext, initTracer } from "../src/tracer";
 
 test("initTracer runs without error", () => {

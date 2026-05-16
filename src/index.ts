@@ -73,14 +73,14 @@ export function createServer(port?: number) {
           ws.subscribe("activity");
           const entries = getRecentActivity(db);
           ws.send(JSON.stringify({ type: "activity_history", entries }));
-        });
+        }, undefined, 1);
       },
       message(_ws, _msg) {},
       async close(ws) {
         await withSpan("ws.close", async () => {
           ws.unsubscribe("counter");
           ws.unsubscribe("activity");
-        });
+        }, undefined, 1);
       },
     },
 
