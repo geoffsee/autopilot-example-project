@@ -40,6 +40,12 @@ export function createServer(port?: number) {
         },
       },
 
+      "/api/health": {
+        GET(_req) {
+          return Response.json({ status: "ok" });
+        },
+      },
+
       "/api/activity": {
         GET(_req) {
           return Response.json({ entries: getRecentActivity(db) });
