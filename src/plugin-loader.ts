@@ -3,7 +3,10 @@ import type { PluginContext, PluginFactory, RouteManifest } from "./plugins/type
 
 export async function loadPlugins(ctx: PluginContext): Promise<RouteManifest> {
   const pluginsDir = new URL("./plugins", import.meta.url).pathname;
-  const files = [...new Glob("*.{ts,js}").scanSync(pluginsDir)].sort();
+  const NON_PLUGIN_FILES = new Set(["types.ts", "types.js"]);
+  const files = [...new Glob("*.{ts,js}").scanSync(pluginsDir)]
+    .filter((f) => !NON_PLUGIN_FILES.has(f))
+    .sort();
 
   const routes: RouteManifest = {};
   for (const file of files) {

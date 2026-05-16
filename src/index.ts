@@ -13,21 +13,8 @@ const db = createCounterDb();
 setupActivityTable(db);
 runMigrations(db, [namedCountersMigration]);
 
-// Mutable reference so createServer can inject per-invocation config into plugin handlers at request time.
-let activeConfig: Config = defaultConfig;
-const pluginRoutes = await loadPlugins({
-  db,
-  get config(): Config { return activeConfig; },
-});
-
-/**
- * NOTE: `createServer` sets a module-level `activeConfig` so that plugin
- * handlers can read the active config at request time. Do not call
- * `createServer` concurrently — the last call wins and all running servers
- * will share the same config reference.
- */
-export function createServer(port?: number, config: Config = defaultConfig) {
-  activeConfig = config;
+export async function createServer(port?: number, config: Config = defaultConfig) {
+  const pluginRoutes = await loadPlugins({ db, config });
   return serve({
     port,
     routes: {
@@ -52,7 +39,7 @@ export function createServer(port?: number, config: Config = defaultConfig) {
       },
     },
 
-    development: activeConfig.isDevelopment && {
+    development: config.isDevelopment && {
       hmr: true,
       console: true,
     },
@@ -61,6 +48,6 @@ export function createServer(port?: number, config: Config = defaultConfig) {
 
 if (import.meta.main) {
   initTracer();
-  const server = createServer();
+  const server = await createServer();
   logger.info("server started", { url: server.url.toString() });
 }

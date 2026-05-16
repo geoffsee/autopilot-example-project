@@ -1,11 +1,11 @@
 import { beforeAll, afterAll, test, expect } from "bun:test";
 import { createServer } from "../src/index";
 
-let server: ReturnType<typeof createServer>;
+let server: Awaited<ReturnType<typeof createServer>>;
 let baseUrl: string;
 
-beforeAll(() => {
-  server = createServer(0);
+beforeAll(async () => {
+  server = await createServer(0);
   baseUrl = server.url.origin;
 });
 
