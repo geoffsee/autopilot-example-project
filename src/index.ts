@@ -48,7 +48,7 @@ export function createServer(port?: number) {
       },
 
       "/api/spec": {
-        GET(_req) {
+        async GET(_req) {
           return Response.json(SPEC);
         },
       },
