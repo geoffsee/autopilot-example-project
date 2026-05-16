@@ -2,10 +2,12 @@ import { serve } from "bun";
 import index from "./index.html";
 import { createCounterDb, getCount, handleCounterPost } from "./counter";
 import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
+import { setupApiKeysTable, requireApiKey } from "./auth";
 import openapiSpec from "./openapi.json";
 
 const db = createCounterDb();
 setupActivityTable(db);
+setupApiKeysTable(db);
 
 export function createServer(port?: number) {
   return serve({
@@ -31,6 +33,8 @@ export function createServer(port?: number) {
           return Response.json({ count: getCount(db) });
         },
         async POST(req, server) {
+          const authError = requireApiKey(req, db);
+          if (authError) return authError;
           const { response, count } = await handleCounterPost(req, db);
           if (response.ok && typeof count === "number") {
             server.publish("counter", JSON.stringify({ type: "counter", count }));

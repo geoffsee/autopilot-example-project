@@ -16,6 +16,25 @@ The autopilot action runs everything inline — no dispatched follow-up workflow
 3. Settings → Actions → General → enable *Read and write permissions* and *Allow GitHub Actions to create and approve pull requests*.
 4. Open a sprint issue with the `sprint` label to kick off the work-dispatch route, or leave it empty and the factory cycle will seed ideas on the next heartbeat.
 
+## API Key Authentication
+
+Write endpoints (`POST`, `PATCH`, `DELETE`) require an `X-API-Key` header. Read endpoints (`GET`) are unauthenticated.
+
+A default dev key is seeded automatically into the `api_keys` SQLite table on startup:
+
+```
+X-API-Key: dev-secret-key
+```
+
+Example:
+
+```sh
+curl -X POST http://localhost:3000/api/counter \
+  -H "X-API-Key: dev-secret-key"
+```
+
+Requests without a valid key receive `401 Unauthorized`.
+
 ## Why these events
 
 | Event | Why fire here |
