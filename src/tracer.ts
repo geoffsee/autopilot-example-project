@@ -17,7 +17,14 @@ export function currentContext(): SpanContext | undefined {
   return storage.getStore();
 }
 
+let spanEmitter: ((chunk: string) => void) | null = null;
+
+export function setSpanEmitter(fn: ((chunk: string) => void) | null): void {
+  spanEmitter = fn;
+}
+
 export function initTracer(): void {
+  spanEmitter = (chunk) => process.stdout.write(chunk);
   const entry = JSON.stringify({
     level: "info",
     msg: "tracer initialized",
@@ -28,13 +35,15 @@ export function initTracer(): void {
   process.stdout.write(entry + "\n");
 }
 
+export const SpanKind = { INTERNAL: 1, SERVER: 2, CLIENT: 3 } as const;
+
 type SpanAttributes = Record<string, string | number | boolean>;
 
 export async function withSpan<T>(
   name: string,
   fn: (ctx: SpanContext) => Promise<T>,
   attributes?: SpanAttributes,
-  kind: number = 2,
+  kind: number = SpanKind.SERVER,
 ): Promise<T> {
   const parent = storage.getStore();
   const traceId = parent?.traceId ?? randomHex(16);
@@ -69,7 +78,7 @@ type SpanRecord = {
 };
 
 function emitSpan(span: SpanRecord): void {
-  if (process.env.NODE_ENV === "test") return;
+  if (!spanEmitter) return;
 
   const startNs = (BigInt(span.startTimeMs) * 1_000_000n).toString();
   const endNs = (BigInt(span.startTimeMs) * 1_000_000n + BigInt(Math.round(span.durationMs * 1_000_000))).toString();
@@ -110,5 +119,5 @@ function emitSpan(span: SpanRecord): void {
     ],
   };
 
-  process.stdout.write(JSON.stringify(otlp) + "\n");
+  spanEmitter(JSON.stringify(otlp) + "\n");
 }
