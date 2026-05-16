@@ -1,4 +1,5 @@
 import { Database } from "bun:sqlite";
+import { runMigrations } from "./migrations";
 
 export function createCounterDb(path = "counter.db"): Database {
   const db = new Database(path);
@@ -18,15 +19,12 @@ export function incrementCounter(db: Database): number {
 }
 
 export function setupCounter(db: Database): void {
-  db.run(
-    `CREATE TABLE IF NOT EXISTS counter (id INTEGER PRIMARY KEY, value INTEGER NOT NULL DEFAULT 0)`
-  );
+  runMigrations(db);
   // Migrate existing databases that still use the old column name.
   const cols = db.query("PRAGMA table_info(counter)").all() as { name: string }[];
   if (cols.some(c => c.name === "count")) {
     db.run(`ALTER TABLE counter RENAME COLUMN count TO value`);
   }
-  db.run(`INSERT OR IGNORE INTO counter (id, value) VALUES (1, 0)`);
 }
 
 export function getCounterValue(db: Database): number {

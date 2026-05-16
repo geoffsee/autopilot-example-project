@@ -1,0 +1,12 @@
+CREATE TABLE IF NOT EXISTS counter (
+  id    INTEGER PRIMARY KEY,
+  value INTEGER NOT NULL DEFAULT 0
+);
+
+INSERT OR IGNORE INTO counter (id, value) VALUES (1, 0);
+
+CREATE TABLE IF NOT EXISTS activity (
+  id        INTEGER PRIMARY KEY AUTOINCREMENT,
+  action    TEXT NOT NULL,
+  timestamp TEXT NOT NULL
+);
