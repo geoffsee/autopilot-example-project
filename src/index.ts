@@ -36,7 +36,7 @@ export function createServer(port?: number) {
       "/api/counter": {
         async GET(_req) {
           return withSpan("GET /api/counter", async () =>
-            Response.json({ count: getCount(db) })
+            Response.json({ count: getCount(db) }), undefined, 1
           );
         },
         async POST(req, server) {
@@ -48,14 +48,14 @@ export function createServer(port?: number) {
               server.publish("activity", JSON.stringify({ type: "activity", entry }));
             }
             return response;
-          });
+          }, undefined, 1);
         },
       },
 
       "/api/activity": {
         async GET(_req) {
           return withSpan("GET /api/activity", async () =>
-            Response.json({ entries: getRecentActivity(db) })
+            Response.json({ entries: getRecentActivity(db) }), undefined, 1
           );
         },
       },
