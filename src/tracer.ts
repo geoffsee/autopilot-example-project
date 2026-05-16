@@ -24,6 +24,7 @@ export function initTracer(): void {
     ts: new Date().toISOString(),
     exporter: "stdout-otlp-json",
   });
+  // Direct stdout write — cannot use logger here to avoid logger→tracer→logger circular import
   process.stdout.write(entry + "\n");
 }
 
@@ -71,7 +72,7 @@ function emitSpan(span: SpanRecord): void {
   if (process.env.NODE_ENV === "test") return;
 
   const startNs = (BigInt(span.startTimeMs) * 1_000_000n).toString();
-  const endNs = (BigInt(Math.round(span.startTimeMs + span.durationMs)) * 1_000_000n).toString();
+  const endNs = (BigInt(span.startTimeMs) * 1_000_000n + BigInt(Math.round(span.durationMs * 1_000_000))).toString();
 
   const otlp = {
     resourceSpans: [
