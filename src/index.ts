@@ -1,8 +1,9 @@
 import { serve } from "bun";
 import index from "./index.html";
 import { createCounterDb, getCount, handleCounterPost } from "./counter";
-import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
+import { setupActivityTable, logActivity, updateActivityLabel, getRecentActivity } from "./activity";
 import { RateLimiter } from "./rate-limiter";
+import { generateLabel } from "./labeler";
 
 const db = createCounterDb();
 setupActivityTable(db);
@@ -64,6 +65,12 @@ export function createServer(port?: number) {
             server.publish("counter", JSON.stringify({ type: "counter", count }));
             const entry = logActivity(db, "counter.increment");
             server.publish("activity", JSON.stringify({ type: "activity", entry }));
+            generateLabel(entry.action, count).then((label) => {
+              if (label) {
+                updateActivityLabel(db, entry.id, label);
+                server.publish("activity", JSON.stringify({ type: "activity_label", id: entry.id, label }));
+              }
+            });
           }
           return ratedResponse;
         },
