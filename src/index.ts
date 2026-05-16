@@ -1,10 +1,12 @@
 import { serve } from "bun";
+import { Database } from "bun:sqlite";
 import index from "./index.html";
-import { createCounterDb, getCount, handleCounterPost } from "./counter";
-import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
+import { getCount, handleCounterPost } from "./counter";
+import { logActivity, getRecentActivity } from "./activity";
+import { runMigrations } from "./db/migrate";
 
-const db = createCounterDb();
-setupActivityTable(db);
+const db = new Database("counter.db");
+runMigrations(db);
 
 export function createServer(port?: number) {
   return serve({
