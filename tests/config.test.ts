@@ -7,10 +7,15 @@ test("defaults NODE_ENV to development when not set", () => {
   expect(cfg.isDevelopment).toBe(true);
 });
 
-test("accepts NODE_ENV=production", () => {
-  const cfg = buildConfig({ NODE_ENV: "production" });
+test("accepts NODE_ENV=production with JWT_SECRET set", () => {
+  const cfg = buildConfig({ NODE_ENV: "production", JWT_SECRET: "prod-secret" });
   expect(cfg.NODE_ENV).toBe("production");
   expect(cfg.isDevelopment).toBe(false);
+  expect(cfg.JWT_SECRET).toBe("prod-secret");
+});
+
+test("throws when NODE_ENV=production and JWT_SECRET is missing", () => {
+  expect(() => buildConfig({ NODE_ENV: "production" })).toThrow(/JWT_SECRET/);
 });
 
 test("accepts NODE_ENV=development", () => {

@@ -3,7 +3,7 @@ import index from "./index.html";
 import { createCounterDb, getCount, handleCounterPost, getNamedCount, incrementNamedCounter } from "./counter";
 import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
 import { config as defaultConfig, buildConfig } from "./config";
-import { verifyJwt, extractBearer } from "./auth";
+import { signJwt, verifyJwt, extractBearer } from "./auth";
 
 const db = createCounterDb();
 setupActivityTable(db);
@@ -41,6 +41,13 @@ export function createServer(port?: number, config: Config = defaultConfig) {
             server.publish("activity", JSON.stringify({ type: "activity", entry }));
           }
           return response;
+        },
+      },
+
+      "/api/auth/token": {
+        async POST() {
+          const token = await signJwt({ sub: "user" }, config.JWT_SECRET);
+          return Response.json({ token });
         },
       },
 

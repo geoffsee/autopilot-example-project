@@ -137,3 +137,28 @@ test("GET /api/counter/:name returns current count without auth", async () => {
   const body = (await res.json()) as { count: number };
   expect(typeof body.count).toBe("number");
 });
+
+// --- POST /api/auth/token ---
+
+test("POST /api/auth/token issues a valid signed JWT", async () => {
+  const res = await fetch(`${baseUrl}/api/auth/token`, { method: "POST" });
+  expect(res.status).toBe(200);
+  const body = (await res.json()) as { token: string };
+  expect(typeof body.token).toBe("string");
+  expect(body.token.split(".")).toHaveLength(3);
+  const payload = await verifyJwt(body.token, TEST_SECRET);
+  expect(typeof payload.exp).toBe("number");
+});
+
+test("POST /api/auth/token token is accepted by POST /api/counter/:name", async () => {
+  const tokenRes = await fetch(`${baseUrl}/api/auth/token`, { method: "POST" });
+  const { token } = (await tokenRes.json()) as { token: string };
+
+  const counterRes = await fetch(`${baseUrl}/api/counter/via-token-endpoint`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}` },
+  });
+  expect(counterRes.status).toBe(200);
+  const body = (await counterRes.json()) as { count: number };
+  expect(typeof body.count).toBe("number");
+});
