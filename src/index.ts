@@ -3,7 +3,7 @@ import index from "./index.html";
 import { createCounterDb, getCount, handleCounterPost } from "./counter";
 import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
 import { logger } from "./logger";
-import { initTracer, withSpan } from "./tracer";
+import { initTracer, withSpan, SpanKind } from "./tracer";
 
 const db = createCounterDb();
 setupActivityTable(db);
@@ -73,14 +73,14 @@ export function createServer(port?: number) {
           ws.subscribe("activity");
           const entries = getRecentActivity(db);
           ws.send(JSON.stringify({ type: "activity_history", entries }));
-        }, undefined, 1);
+        }, undefined, SpanKind.INTERNAL);
       },
       message(_ws, _msg) {},
       async close(ws) {
         await withSpan("ws.close", async () => {
           ws.unsubscribe("counter");
           ws.unsubscribe("activity");
-        }, undefined, 1);
+        }, undefined, SpanKind.INTERNAL);
       },
     },
 
