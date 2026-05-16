@@ -4,6 +4,8 @@ import { setupActivityTable, getRecentActivity } from "./activity";
 import { loadPlugins } from "./plugin-loader";
 import { config as defaultConfig, buildConfig } from "./config";
 import { runMigrations } from "./migrate";
+import { logger } from "./logger";
+import { initTracer, withSpan } from "./tracer";
 
 type Config = ReturnType<typeof buildConfig>;
 
@@ -18,6 +20,12 @@ const pluginRoutes = await loadPlugins({
   get config(): Config { return activeConfig; },
 });
 
+/**
+ * NOTE: `createServer` sets a module-level `activeConfig` so that plugin
+ * handlers can read the active config at request time. Do not call
+ * `createServer` concurrently — the last call wins and all running servers
+ * will share the same config reference.
+ */
 export function createServer(port?: number, config: Config = defaultConfig) {
   activeConfig = config;
   return serve({
@@ -27,16 +35,20 @@ export function createServer(port?: number, config: Config = defaultConfig) {
     },
 
     websocket: {
-      open(ws) {
-        ws.subscribe("counter");
-        ws.subscribe("activity");
-        const entries = getRecentActivity(db);
-        ws.send(JSON.stringify({ type: "activity_history", entries }));
+      async open(ws) {
+        await withSpan("ws.open", async () => {
+          ws.subscribe("counter");
+          ws.subscribe("activity");
+          const entries = getRecentActivity(db);
+          ws.send(JSON.stringify({ type: "activity_history", entries }));
+        });
       },
       message(_ws, _msg) {},
-      close(ws) {
-        ws.unsubscribe("counter");
-        ws.unsubscribe("activity");
+      async close(ws) {
+        await withSpan("ws.close", async () => {
+          ws.unsubscribe("counter");
+          ws.unsubscribe("activity");
+        });
       },
     },
 
@@ -48,6 +60,7 @@ export function createServer(port?: number, config: Config = defaultConfig) {
 }
 
 if (import.meta.main) {
+  initTracer();
   const server = createServer();
-  console.log(`🚀 Server running at ${server.url}`);
+  logger.info("server started", { url: server.url.toString() });
 }

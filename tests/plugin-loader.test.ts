@@ -3,6 +3,7 @@ import { Database } from "bun:sqlite";
 import { setupCounter } from "../src/counter";
 import { setupActivityTable } from "../src/activity";
 import { loadPlugins } from "../src/plugin-loader";
+import { buildConfig } from "../src/config";
 
 let db: Database;
 let routes: Awaited<ReturnType<typeof loadPlugins>>;
@@ -11,7 +12,7 @@ beforeAll(async () => {
   db = new Database(":memory:");
   setupCounter(db);
   setupActivityTable(db);
-  routes = await loadPlugins({ db });
+  routes = await loadPlugins({ db, config: buildConfig({ NODE_ENV: "test" }) });
 });
 
 afterAll(() => {

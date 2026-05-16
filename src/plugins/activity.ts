@@ -1,10 +1,13 @@
 import type { PluginFactory } from "./types";
 import { getRecentActivity } from "../activity";
+import { withSpan } from "../tracer";
 
 const plugin: PluginFactory = ({ db }) => ({
   "/api/activity": {
-    GET(_req: Request) {
-      return Response.json({ entries: getRecentActivity(db) });
+    async GET(_req: Request) {
+      return withSpan("GET /api/activity", async () =>
+        Response.json({ entries: getRecentActivity(db) })
+      );
     },
   },
 });
