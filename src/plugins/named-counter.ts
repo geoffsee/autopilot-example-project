@@ -8,12 +8,20 @@ import { withSpan } from "../tracer";
 const plugin: PluginFactory = (ctx) => ({
   "/api/counter/:name": {
     async GET(req: Request & { params: Record<string, string> }) {
-      return withSpan("GET /api/counter/:name", async () =>
-        Response.json({ count: getNamedCount(ctx.db, req.params.name) })
-      );
+      return withSpan("GET /api/counter/:name", async () => {
+        const name = req.params.name;
+        if (!/^[\w-]{1,64}$/.test(name)) {
+          return Response.json({ error: "Invalid counter name" }, { status: 400 });
+        }
+        return Response.json({ count: getNamedCount(ctx.db, name) });
+      });
     },
     async POST(req: Request & { params: Record<string, string> }, server: Server) {
       return withSpan("POST /api/counter/:name", async () => {
+        const name = req.params.name;
+        if (!/^[\w-]{1,64}$/.test(name)) {
+          return Response.json({ error: "Invalid counter name" }, { status: 400 });
+        }
         const bearer = extractBearer(req);
         if (!bearer) {
           return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -23,9 +31,9 @@ const plugin: PluginFactory = (ctx) => ({
         } catch {
           return Response.json({ error: "Unauthorized" }, { status: 401 });
         }
-        const count = incrementNamedCounter(ctx.db, req.params.name);
-        server.publish("counter", JSON.stringify({ type: "counter", name: req.params.name, count }));
-        const entry = logActivity(ctx.db, `counter.increment.${req.params.name}`);
+        const count = incrementNamedCounter(ctx.db, name);
+        server.publish("counter", JSON.stringify({ type: "counter", name, count }));
+        const entry = logActivity(ctx.db, `counter.increment.${name}`);
         server.publish("activity", JSON.stringify({ type: "activity", entry }));
         return Response.json({ count });
       });

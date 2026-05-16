@@ -67,8 +67,14 @@ type SpanRecord = {
   kind: number;
 };
 
+let spanEmitter: ((chunk: string) => void) | null = (chunk: string) => process.stdout.write(chunk);
+
+export function setSpanEmitter(fn: ((chunk: string) => void) | null): void {
+  spanEmitter = fn;
+}
+
 function emitSpan(span: SpanRecord): void {
-  if (process.env.NODE_ENV === "test") return;
+  if (!spanEmitter) return;
 
   const startNs = (BigInt(span.startTimeMs) * 1_000_000n).toString();
   const endNs = (BigInt(span.startTimeMs) * 1_000_000n + BigInt(Math.round(span.durationMs * 1_000_000))).toString();
@@ -109,5 +115,5 @@ function emitSpan(span: SpanRecord): void {
     ],
   };
 
-  process.stdout.write(JSON.stringify(otlp) + "\n");
+  spanEmitter(JSON.stringify(otlp) + "\n");
 }
