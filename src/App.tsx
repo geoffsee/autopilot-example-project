@@ -4,12 +4,13 @@ import "./index.css";
 import logo from "./logo.svg";
 import reactLogo from "./react.svg";
 
-type ActivityEntry = { id: number; action: string; timestamp: string };
+type ActivityEntry = { id: number; action: string; timestamp: string; label: string | null };
 
 type WsMessage =
   | { type: "counter"; count: number }
   | { type: "activity"; entry: ActivityEntry }
-  | { type: "activity_history"; entries: ActivityEntry[] };
+  | { type: "activity_history"; entries: ActivityEntry[] }
+  | { type: "activity_label"; id: number; label: string };
 
 type WsContextValue = {
   connected: boolean;
@@ -105,6 +106,8 @@ function ActivityFeed() {
         setEntries(msg.entries);
       } else if (msg.type === "activity") {
         setEntries((prev) => [msg.entry, ...prev].slice(0, 50));
+      } else if (msg.type === "activity_label") {
+        setEntries((prev) => prev.map((e) => e.id === msg.id ? { ...e, label: msg.label } : e));
       }
     });
   }, [subscribe]);
@@ -126,6 +129,7 @@ function ActivityFeed() {
           entries.map((e) => (
             <li key={e.id}>
               <span className="action">{e.action}</span>
+              {e.label && <span className="label">{e.label}</span>}
               <span className="timestamp">{new Date(e.timestamp).toLocaleTimeString()}</span>
             </li>
           ))

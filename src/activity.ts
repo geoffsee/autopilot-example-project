@@ -20,7 +20,7 @@ export function setupActivityTable(db: Database): void {
 
 export function logActivity(db: Database, action: string): ActivityEntry {
   const timestamp = new Date().toISOString();
-  const result = db.run("INSERT INTO activity (action, timestamp, label) VALUES (?, ?, NULL)", [action, timestamp]);
+  const result = db.run("INSERT INTO activity (action, timestamp) VALUES (?, ?)", [action, timestamp]);
   return { id: Number(result.lastInsertRowid), action, timestamp, label: null };
 }
 
