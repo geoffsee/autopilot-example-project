@@ -1,7 +1,11 @@
+import { currentContext } from "./tracer";
+
 type Level = "info" | "error" | "warn" | "debug";
 
 function emit(level: Level, msg: string, ctx?: Record<string, unknown>): void {
-  const entry = JSON.stringify({ ...ctx, level, msg, ts: new Date().toISOString() });
+  const spanCtx = currentContext();
+  const traceFields = spanCtx ? { traceId: spanCtx.traceId, spanId: spanCtx.spanId } : {};
+  const entry = JSON.stringify({ ...ctx, ...traceFields, level, msg, ts: new Date().toISOString() });
   if (typeof process !== "undefined" && typeof process.stdout?.write === "function") {
     process.stdout.write(entry + "\n");
   } else {
