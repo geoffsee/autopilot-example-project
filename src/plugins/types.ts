@@ -1,8 +1,12 @@
 import type { Database } from "bun:sqlite";
 import type { Server } from "bun";
+import type { buildConfig } from "../config";
+
+export type Config = ReturnType<typeof buildConfig>;
 
 export interface PluginContext {
   db: Database;
+  config: Config;
 }
 
 type RouteHandler = (req: Request, server: Server) => Response | undefined | Promise<Response | undefined>;

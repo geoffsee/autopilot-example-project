@@ -1,14 +1,25 @@
 import { serve } from "bun";
-import { createCounterDb } from "./counter";
+import { createCounterDb, namedCountersMigration } from "./counter";
 import { setupActivityTable, getRecentActivity } from "./activity";
 import { loadPlugins } from "./plugin-loader";
+import { config as defaultConfig, buildConfig } from "./config";
+import { runMigrations } from "./migrate";
+
+type Config = ReturnType<typeof buildConfig>;
 
 const db = createCounterDb();
 setupActivityTable(db);
+runMigrations(db, [namedCountersMigration]);
 
-const pluginRoutes = await loadPlugins({ db });
+// Mutable reference so createServer can inject per-invocation config into plugin handlers at request time.
+let activeConfig: Config = defaultConfig;
+const pluginRoutes = await loadPlugins({
+  db,
+  get config(): Config { return activeConfig; },
+});
 
-export function createServer(port?: number) {
+export function createServer(port?: number, config: Config = defaultConfig) {
+  activeConfig = config;
   return serve({
     port,
     routes: {
@@ -29,7 +40,7 @@ export function createServer(port?: number) {
       },
     },
 
-    development: process.env.NODE_ENV !== "production" && {
+    development: activeConfig.isDevelopment && {
       hmr: true,
       console: true,
     },
