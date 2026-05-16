@@ -5,14 +5,16 @@ type Level = "info" | "error" | "warn" | "debug";
 const RESERVED = new Set(["level", "msg", "ts", "traceId", "spanId"]);
 
 function emit(level: Level, msg: string, ctx?: Record<string, unknown>): void {
+  let safeCtx: Record<string, unknown> | undefined;
   if (ctx) {
+    safeCtx = {};
     for (const k of Object.keys(ctx)) {
-      if (RESERVED.has(k)) throw new Error(`ctx key '${k}' is reserved`);
+      safeCtx[RESERVED.has(k) ? `_${k}` : k] = ctx[k];
     }
   }
   const spanCtx = currentContext();
   const traceFields = spanCtx ? { traceId: spanCtx.traceId, spanId: spanCtx.spanId } : {};
-  const entry = JSON.stringify({ level, msg, ts: new Date().toISOString(), ...traceFields, ...ctx });
+  const entry = JSON.stringify({ level, msg, ts: new Date().toISOString(), ...traceFields, ...safeCtx });
   if (typeof process !== "undefined" && typeof process.stdout?.write === "function") {
     process.stdout.write(entry + "\n");
   } else {
