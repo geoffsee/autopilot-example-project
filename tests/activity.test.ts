@@ -101,10 +101,10 @@ beforeAll(() => {
       "/api/activity": {
         GET(req) {
           const url = new URL(req.url);
-          const action = url.searchParams.get("action") ?? undefined;
+          const action = url.searchParams.get("action") || undefined;
           const limitParam = url.searchParams.get("limit");
           const limitRaw = limitParam !== null ? parseInt(limitParam, 10) : 20;
-          const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : 20;
+          const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 1000) : 20;
           return Response.json({ entries: getRecentActivity(db, limit, action) });
         },
       },
