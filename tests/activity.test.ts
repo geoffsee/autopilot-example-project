@@ -209,11 +209,18 @@ test("POST /api/counter rejects invalid JSON body", async () => {
   expect(res.status).toBe(400);
 });
 
-test("POST /api/counter rejects negative increment", async () => {
+test("POST /api/counter with negative increment decrements and returns 200", async () => {
+  await fetch(`${baseUrl}/api/counter`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ increment: 5 }),
+  });
   const res = await fetch(`${baseUrl}/api/counter`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ increment: -1 }),
+    body: JSON.stringify({ increment: -3 }),
   });
-  expect(res.status).toBe(400);
+  expect(res.status).toBe(200);
+  const json = await res.json() as { count: number };
+  expect(typeof json.count).toBe("number");
 });

@@ -71,18 +71,22 @@ export async function handleCounterPost(
       if (
         typeof inc !== "number" ||
         !Number.isInteger(inc) ||
-        inc < 0 ||
+        inc < -1_000_000 ||
         inc > 1_000_000
       ) {
         return {
           response: Response.json(
-            { error: "increment must be a non-negative integer no greater than 1000000" },
+            { error: "increment must be an integer between -1000000 and 1000000" },
             { status: 400 }
           ),
         };
       }
       increment = inc;
     }
+  }
+
+  if (increment === 0) {
+    return { response: Response.json({ count: getCounterValue(db) }) };
   }
 
   const row = db

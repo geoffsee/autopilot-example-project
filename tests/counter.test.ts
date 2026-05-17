@@ -117,11 +117,30 @@ test("POST with JSON string returns 400", async () => {
   expect(res.status).toBe(400);
 });
 
-test("POST with negative increment returns 400", async () => {
-  const { response: res } = await handleCounterPost(makePostRequest({ increment: -1 }), db);
-  expect(res.status).toBe(400);
-  const json = await res.json() as { error: string };
-  expect(typeof json.error).toBe("string");
+test("POST with negative increment decrements the counter", async () => {
+  await handleCounterPost(makePostRequest({ increment: 5 }), db);
+  const { response: res, count } = await handleCounterPost(makePostRequest({ increment: -3 }), db);
+  expect(res.status).toBe(200);
+  const json = await res.json() as { count: number };
+  expect(json.count).toBe(2);
+  expect(count).toBe(2);
+});
+
+test("POST with zero increment is a no-op: count unchanged, no count returned", async () => {
+  await handleCounterPost(makePostRequest({ increment: 5 }), db);
+  const { response: res, count } = await handleCounterPost(makePostRequest({ increment: 0 }), db);
+  expect(res.status).toBe(200);
+  const json = await res.json() as { count: number };
+  expect(json.count).toBe(5);
+  expect(count).toBeUndefined();
+});
+
+test("POST with large positive delta (1000000) works", async () => {
+  const { response: res, count } = await handleCounterPost(makePostRequest({ increment: 1_000_000 }), db);
+  expect(res.status).toBe(200);
+  const json = await res.json() as { count: number };
+  expect(json.count).toBe(1_000_000);
+  expect(count).toBe(1_000_000);
 });
 
 test("POST with float increment returns 400", async () => {
