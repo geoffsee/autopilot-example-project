@@ -1,5 +1,4 @@
 import { Database } from "bun:sqlite";
-import { readdirSync } from "node:fs";
 import { join } from "node:path";
 
 export async function runMigrations(db: Database, migrationsDir?: string): Promise<void> {
@@ -10,9 +9,7 @@ export async function runMigrations(db: Database, migrationsDir?: string): Promi
     applied_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`);
 
-  const files = readdirSync(dir)
-    .filter(f => f.endsWith(".sql"))
-    .sort();
+  const files = [...new Bun.Glob("*.sql").scanSync(dir)].sort();
 
   const applyMigration = db.transaction((ver: string, sql: string) => {
     db.exec(sql);

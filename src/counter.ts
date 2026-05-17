@@ -20,7 +20,9 @@ export function incrementCounter(db: Database): number {
 
 export async function setupCounter(db: Database): Promise<void> {
   // Rename legacy column before running SQL migrations that reference 'value'.
-  const cols = db.query("PRAGMA table_info(counter)").all() as { name: string }[];
+  const pragma = db.query("PRAGMA table_info(counter)");
+  const cols = pragma.all() as { name: string }[];
+  pragma.finalize();
   if (cols.some(c => c.name === "count")) {
     db.run(`ALTER TABLE counter RENAME COLUMN count TO value`);
   }
