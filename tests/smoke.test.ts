@@ -59,10 +59,11 @@ test("POST /api/counter/reset broadcasts counter=0 over WebSocket", async () => 
   });
 
   // drain the activity_history burst sent on connect
-  await new Promise<void>((resolve) => {
+  await new Promise<void>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error("timed out waiting for activity_history")), 3000);
     ws.onmessage = (e) => {
       const msg = JSON.parse(e.data as string) as { type: string };
-      if (msg.type === "activity_history") resolve();
+      if (msg.type === "activity_history") { clearTimeout(t); resolve(); }
     };
   });
 
