@@ -30,8 +30,8 @@ export function setupCounter(db: Database): void {
 }
 
 export function resetCounter(db: Database): number {
-  const row = db.query("UPDATE counter SET value = 0 WHERE id = 1 RETURNING value").get() as { value: number } | null;
-  return row?.value ?? 0;
+  db.run("UPDATE counter SET value = 0 WHERE id = 1");
+  return 0;
 }
 
 export function getCounterValue(db: Database): number {
