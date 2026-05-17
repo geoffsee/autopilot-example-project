@@ -43,3 +43,26 @@ test("runMigrations second run is a no-op", () => {
 
   db.close();
 });
+
+test("runMigrations throws on non-existent directory", () => {
+  const db = new Database(":memory:");
+  expect(() => runMigrations(db, "/tmp/does-not-exist-migrations-dir")).toThrow();
+  db.close();
+});
+
+test("runMigrations throws and rolls back on invalid SQL", () => {
+  const db = new Database(":memory:");
+  const tmpDir = require("node:fs").mkdtempSync(require("node:os").tmpdir() + "/migrate-test-");
+  require("node:fs").writeFileSync(require("node:path").join(tmpDir, "002_bad.sql"), "THIS IS NOT VALID SQL;;;");
+
+  expect(() => runMigrations(db, tmpDir)).toThrow();
+
+  // migration should not have been recorded
+  const rows = db
+    .query<{ filename: string }, []>("SELECT filename FROM _migrations")
+    .all();
+  expect(rows.length).toBe(0);
+
+  require("node:fs").rmSync(tmpDir, { recursive: true });
+  db.close();
+});
