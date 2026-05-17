@@ -1,6 +1,6 @@
 import { expect, test, beforeAll, afterAll } from "bun:test";
-import { serve } from "bun";
-import { createCounterDb, handleCounterPost } from "../src/counter";
+import { createServer } from "../src/index";
+import { createCounterDb } from "../src/counter";
 import { setupActivityTable, logActivity, getRecentActivity } from "../src/activity";
 
 // Unit tests for activity DB functions
@@ -75,59 +75,10 @@ test("getRecentActivity returns all when action filter matches nothing", () => {
 
 // HTTP integration tests
 let baseUrl: string;
-let server: ReturnType<typeof serve>;
+let server: ReturnType<typeof createServer>;
 
 beforeAll(() => {
-  const db = createCounterDb(":memory:");
-  setupActivityTable(db);
-
-  server = serve({
-    port: 0,
-    routes: {
-      "/api/counter": {
-        GET(_req) {
-          return Response.json({ count: 0 });
-        },
-        async POST(req, server) {
-          const { response, count } = await handleCounterPost(req, db);
-          if (response.ok && typeof count === "number") {
-            server.publish("counter", JSON.stringify({ type: "counter", count }));
-            const entry = logActivity(db, "counter.increment");
-            server.publish("activity", JSON.stringify({ type: "activity", entry }));
-          }
-          return response;
-        },
-      },
-      "/api/activity": {
-        GET(req) {
-          const url = new URL(req.url);
-          const action = url.searchParams.get("action") || undefined;
-          const limitParam = url.searchParams.get("limit");
-          const limitRaw = limitParam !== null ? parseInt(limitParam, 10) : 20;
-          const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 1000) : 20;
-          return Response.json({ entries: getRecentActivity(db, limit, action) });
-        },
-      },
-      "/ws": (req, server) => {
-        if (server.upgrade(req, { data: undefined })) return;
-        return new Response("WebSocket upgrade failed", { status: 400 });
-      },
-    },
-    websocket: {
-      open(ws) {
-        ws.subscribe("counter");
-        ws.subscribe("activity");
-        const entries = getRecentActivity(db);
-        ws.send(JSON.stringify({ type: "activity_history", entries }));
-      },
-      message(_ws, _msg) {},
-      close(ws) {
-        ws.unsubscribe("counter");
-        ws.unsubscribe("activity");
-      },
-    },
-  });
-
+  server = createServer(0);
   baseUrl = `http://localhost:${server.port}`;
 });
 
