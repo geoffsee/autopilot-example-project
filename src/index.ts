@@ -2,6 +2,7 @@ import { serve } from "bun";
 import index from "./index.html";
 import { createCounterDb, getCount, handleCounterPost } from "./counter";
 import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
+import { handleHealthGet } from "./health";
 
 const db = createCounterDb();
 setupActivityTable(db);
@@ -37,6 +38,12 @@ export function createServer(port?: number) {
             server.publish("activity", JSON.stringify({ type: "activity", entry }));
           }
           return response;
+        },
+      },
+
+      "/api/health": {
+        GET(_req) {
+          return handleHealthGet(db);
         },
       },
 
