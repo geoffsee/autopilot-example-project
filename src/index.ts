@@ -60,7 +60,7 @@ export function createServer(port?: number) {
         GET(req) {
           const url = new URL(req.url);
           const raw = parseInt(url.searchParams.get("limit") ?? "", 10);
-          const limit = raw > 0 ? raw : 10;
+          const limit = Math.min(raw > 0 ? raw : 10, 100);
           return Response.json(getLeaderboard(db, limit));
         },
       },

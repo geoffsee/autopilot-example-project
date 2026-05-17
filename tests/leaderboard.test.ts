@@ -17,9 +17,7 @@ describe("getLeaderboard DB function", () => {
 
   test("returns empty array when no named counters exist", () => {
     const results = getLeaderboard(db, 10);
-    // The default counter (id=1, name='default') is seeded at 0; leaderboard should exclude value=0 entries or include them all
-    // Per spec: returns all counters sorted by value DESC — we include any that exist
-    expect(Array.isArray(results)).toBe(true);
+    expect(results.every(r => typeof r.name === "string" && typeof r.value === "number")).toBe(true);
   });
 
   test("returns counters sorted descending by value", () => {
