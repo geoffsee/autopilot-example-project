@@ -29,9 +29,8 @@ export function setupCounter(db: Database): void {
   db.run(`INSERT OR IGNORE INTO counter (id, value) VALUES (1, 0)`);
 }
 
-export function resetCounter(db: Database): number {
+export function resetCounter(db: Database): void {
   db.run("UPDATE counter SET value = 0 WHERE id = 1");
-  return 0;
 }
 
 export function getCounterValue(db: Database): number {

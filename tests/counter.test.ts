@@ -159,8 +159,3 @@ test("resetCounter sets counter to 0", () => {
   resetCounter(db);
   expect(getCounterValue(db)).toBe(0);
 });
-
-test("resetCounter returns 0", () => {
-  db.run("UPDATE counter SET value = 7 WHERE id = 1");
-  expect(resetCounter(db)).toBe(0);
-});
