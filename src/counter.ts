@@ -108,6 +108,12 @@ export async function handleCounterPost(
   return { response: Response.json({ count: row.value }), count: row.value };
 }
 
+export function getLeaderboard(db: Database, limit: number): { name: string; value: number }[] {
+  return db
+    .query("SELECT name, value FROM counter WHERE name IS NOT NULL ORDER BY value DESC LIMIT ?")
+    .all(limit) as { name: string; value: number }[];
+}
+
 export async function handleNamedCounterPost(
   req: Request,
   db: Database,
