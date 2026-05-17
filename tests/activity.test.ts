@@ -1,7 +1,7 @@
 import { expect, test, beforeAll, afterAll } from "bun:test";
 import { serve } from "bun";
 import { createCounterDb, handleCounterPost } from "../src/counter";
-import { setupActivityTable, logActivity, getRecentActivity, getActivityCount } from "../src/activity";
+import { setupActivityTable, logActivity, getRecentActivity, getActivityBefore, getActivityCount } from "../src/activity";
 
 // Unit tests for activity DB functions
 test("getRecentActivity returns empty array on fresh DB", () => {
@@ -41,16 +41,17 @@ test("getRecentActivity respects limit", () => {
   db.close();
 });
 
-test("getRecentActivity with offset skips entries", () => {
+test("getActivityBefore returns entries with id less than given id", () => {
   const db = createCounterDb(":memory:");
   setupActivityTable(db);
   for (let i = 0; i < 5; i++) logActivity(db, `action.${i}`);
-  const page1 = getRecentActivity(db, 2, 0);
-  const page2 = getRecentActivity(db, 2, 2);
-  expect(page1[0]!.action).toBe("action.4");
-  expect(page1[1]!.action).toBe("action.3");
-  expect(page2[0]!.action).toBe("action.2");
-  expect(page2[1]!.action).toBe("action.1");
+  const all = getRecentActivity(db);
+  // all is [action.4(id=5), action.3(id=4), action.2(id=3), action.1(id=2), action.0(id=1)]
+  const cutId = all[1]!.id; // id of action.3
+  const page = getActivityBefore(db, cutId, 3);
+  expect(page[0]!.action).toBe("action.2");
+  expect(page[1]!.action).toBe("action.1");
+  expect(page[2]!.action).toBe("action.0");
   db.close();
 });
 
@@ -98,12 +99,14 @@ beforeAll(() => {
         GET(req) {
           const url = new URL(req.url);
           const rawLimit = parseInt(url.searchParams.get("limit") ?? "20", 10);
-          const rawOffset = parseInt(url.searchParams.get("offset") ?? "0", 10);
           const limit = !isNaN(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 100) : 20;
-          const offset = !isNaN(rawOffset) && rawOffset >= 0 ? rawOffset : 0;
-          const entries = getRecentActivity(db, limit, offset);
+          const rawBefore = url.searchParams.get("before");
+          const beforeId = rawBefore != null ? parseInt(rawBefore, 10) : null;
+          const entries = beforeId != null && !isNaN(beforeId)
+            ? getActivityBefore(db, beforeId, limit)
+            : getRecentActivity(db, limit);
           const total = getActivityCount(db);
-          return Response.json({ entries, total, limit, offset });
+          return Response.json({ entries, total, limit });
         },
       },
       "/ws": (req, server) => {
@@ -256,11 +259,10 @@ test("POST /api/counter rejects negative increment", async () => {
 test("GET /api/counter/history returns default page with total", async () => {
   const res = await fetch(`${baseUrl}/api/counter/history`);
   expect(res.status).toBe(200);
-  const body = await res.json() as { entries: unknown[]; total: number; limit: number; offset: number };
+  const body = await res.json() as { entries: unknown[]; total: number; limit: number };
   expect(Array.isArray(body.entries)).toBe(true);
   expect(typeof body.total).toBe("number");
   expect(body.limit).toBe(20);
-  expect(body.offset).toBe(0);
 });
 
 test("GET /api/counter/history?limit=2 returns at most 2 entries", async () => {
@@ -270,13 +272,13 @@ test("GET /api/counter/history?limit=2 returns at most 2 entries", async () => {
 
   const res = await fetch(`${baseUrl}/api/counter/history?limit=2`);
   expect(res.status).toBe(200);
-  const body = await res.json() as { entries: unknown[]; total: number; limit: number; offset: number };
+  const body = await res.json() as { entries: unknown[]; total: number; limit: number };
   expect(body.entries.length).toBeLessThanOrEqual(2);
   expect(body.limit).toBe(2);
   expect(body.total).toBeGreaterThanOrEqual(3);
 });
 
-test("GET /api/counter/history?limit=2&offset=1 skips first entry", async () => {
+test("GET /api/counter/history?before=<id> returns entries before given id", async () => {
   const allRes = await fetch(`${baseUrl}/api/counter/history?limit=100`);
   const allBody = await allRes.json() as { entries: { id: number }[]; total: number };
   if (allBody.total < 2) {
@@ -284,14 +286,13 @@ test("GET /api/counter/history?limit=2&offset=1 skips first entry", async () => 
     await fetch(`${baseUrl}/api/counter`, { method: "POST" });
   }
 
-  const page0Res = await fetch(`${baseUrl}/api/counter/history?limit=2&offset=0`);
+  const page0Res = await fetch(`${baseUrl}/api/counter/history?limit=2`);
   const page0 = await page0Res.json() as { entries: { id: number }[] };
 
-  const page1Res = await fetch(`${baseUrl}/api/counter/history?limit=2&offset=1`);
-  const page1 = await page1Res.json() as { entries: { id: number }[]; offset: number };
-
-  expect(page1.offset).toBe(1);
-  if (page0.entries.length >= 2 && page1.entries.length >= 1) {
-    expect(page1.entries[0]!.id).toBe(page0.entries[1]!.id);
+  if (page0.entries.length >= 2) {
+    const cutId = page0.entries[1]!.id;
+    const page1Res = await fetch(`${baseUrl}/api/counter/history?limit=2&before=${cutId}`);
+    const page1 = await page1Res.json() as { entries: { id: number }[] };
+    expect(page1.entries.every((e) => e.id < cutId)).toBe(true);
   }
 });

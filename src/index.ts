@@ -1,7 +1,7 @@
 import { serve } from "bun";
 import index from "./index.html";
 import { createCounterDb, getCount, handleCounterPost } from "./counter";
-import { setupActivityTable, logActivity, getRecentActivity, getActivityCount } from "./activity";
+import { setupActivityTable, logActivity, getRecentActivity, getActivityBefore, getActivityCount } from "./activity";
 
 const db = createCounterDb();
 setupActivityTable(db);
@@ -50,14 +50,16 @@ export function createServer(port?: number) {
         GET(req) {
           const url = new URL(req.url);
           const rawLimit = parseInt(url.searchParams.get("limit") ?? "20", 10);
-          const rawOffset = parseInt(url.searchParams.get("offset") ?? "0", 10);
           const limit = !isNaN(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 100) : 20;
-          const offset = !isNaN(rawOffset) && rawOffset >= 0 ? rawOffset : 0;
+          const rawBefore = url.searchParams.get("before");
+          const beforeId = rawBefore != null ? parseInt(rawBefore, 10) : null;
           const { entries, total } = db.transaction(() => ({
-            entries: getRecentActivity(db, limit, offset),
+            entries: beforeId != null && !isNaN(beforeId)
+              ? getActivityBefore(db, beforeId, limit)
+              : getRecentActivity(db, limit),
             total: getActivityCount(db),
           }))();
-          return Response.json({ entries, total, limit, offset });
+          return Response.json({ entries, total, limit });
         },
       },
 

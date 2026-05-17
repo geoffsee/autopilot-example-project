@@ -102,10 +102,13 @@ function ActivityFeed() {
   const [loadingMore, setLoadingMore] = useState(false);
   const { connected, subscribe } = useContext(WsContext);
   const listRef = useRef<HTMLUListElement>(null);
-  const dbOffsetRef = useRef(0);
+  const lastSeenIdRef = useRef<number | null>(null);
 
-  const fetchPage = useCallback(async (offset: number) => {
-    const res = await fetch(`/api/counter/history?limit=${PAGE_SIZE}&offset=${offset}`);
+  const fetchPage = useCallback(async (beforeId: number | null) => {
+    const url = beforeId != null
+      ? `/api/counter/history?limit=${PAGE_SIZE}&before=${beforeId}`
+      : `/api/counter/history?limit=${PAGE_SIZE}`;
+    const res = await fetch(url);
     if (!res.ok) return;
     const data = await res.json() as { entries: ActivityEntry[]; total: number };
     setTotal(data.total);
@@ -113,10 +116,10 @@ function ActivityFeed() {
   }, []);
 
   useEffect(() => {
-    fetchPage(0).then((page) => {
+    fetchPage(null).then((page) => {
       if (page) {
         setEntries(page);
-        dbOffsetRef.current = page.length;
+        lastSeenIdRef.current = page[page.length - 1]?.id ?? null;
       }
     });
   }, [fetchPage]);
@@ -125,6 +128,7 @@ function ActivityFeed() {
     return subscribe((msg) => {
       if (msg.type === "activity_history") {
         setEntries(msg.entries);
+        lastSeenIdRef.current = msg.entries[msg.entries.length - 1]?.id ?? null;
       } else if (msg.type === "activity") {
         setEntries((prev) => [msg.entry, ...prev].slice(0, 200));
         setTotal((t) => t + 1);
@@ -135,10 +139,10 @@ function ActivityFeed() {
   const handleLoadMore = async () => {
     setLoadingMore(true);
     try {
-      const page = await fetchPage(dbOffsetRef.current);
+      const page = await fetchPage(lastSeenIdRef.current);
       if (page) {
         setEntries((prev) => [...prev, ...page]);
-        dbOffsetRef.current += page.length;
+        lastSeenIdRef.current = page[page.length - 1]?.id ?? lastSeenIdRef.current;
       }
     } finally {
       setLoadingMore(false);

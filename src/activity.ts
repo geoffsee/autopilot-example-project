@@ -18,12 +18,20 @@ export function logActivity(db: Database, action: string): ActivityEntry {
   return { id: Number(result.lastInsertRowid), action, timestamp };
 }
 
-export function getRecentActivity(db: Database, limit = 20, offset = 0): ActivityEntry[] {
+export function getRecentActivity(db: Database, limit = 20): ActivityEntry[] {
+  return db
+    .query<ActivityEntry, [number]>(
+      "SELECT id, action, timestamp FROM activity ORDER BY id DESC LIMIT ?"
+    )
+    .all(limit);
+}
+
+export function getActivityBefore(db: Database, beforeId: number, limit: number): ActivityEntry[] {
   return db
     .query<ActivityEntry, [number, number]>(
-      "SELECT id, action, timestamp FROM activity ORDER BY id DESC LIMIT ? OFFSET ?"
+      "SELECT id, action, timestamp FROM activity WHERE id < ? ORDER BY id DESC LIMIT ?"
     )
-    .all(limit, offset);
+    .all(beforeId, limit);
 }
 
 export function getActivityCount(db: Database): number {
