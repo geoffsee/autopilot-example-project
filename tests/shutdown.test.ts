@@ -41,7 +41,28 @@ test("SIGTERM causes process to exit with code 0", async () => {
     env: { ...process.env, NODE_ENV: "production" },
   });
 
-  await Bun.sleep(500);
+  // Read the server URL from stdout (the startup log line contains it).
+  const reader = proc.stdout.getReader();
+  const decoder = new TextDecoder();
+  let serverUrl = "";
+  while (!serverUrl) {
+    const { value } = await reader.read();
+    const match = decoder.decode(value).match(/http:\/\/\S+/);
+    if (match) serverUrl = match[0].replace(/\/$/, "");
+  }
+  reader.releaseLock();
+
+  // Poll until the server responds rather than sleeping a fixed amount.
+  let ready = false;
+  for (let i = 0; i < 10; i++) {
+    try {
+      const res = await fetch(`${serverUrl}/api/hello`);
+      if (res.ok) { ready = true; break; }
+    } catch (_e) { /* not ready yet */ }
+    await Bun.sleep(100);
+  }
+  expect(ready).toBe(true);
+
   proc.kill("SIGTERM");
 
   const exitCode = await proc.exited;

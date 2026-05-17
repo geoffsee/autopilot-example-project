@@ -6,8 +6,11 @@ import { createCounterDb, getCount, handleCounterPost } from "./counter";
 import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
 
 export async function shutdown(server: Server, db: Database): Promise<void> {
-  await server.stop(true);
-  db.close();
+  try {
+    await server.stop(true);
+  } finally {
+    db.close();
+  }
 }
 
 export function createServer(port?: number, providedDb?: Database) {
