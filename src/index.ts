@@ -2,15 +2,23 @@ import { serve } from "bun";
 import index from "./index.html";
 import { createCounterDb, getCount, handleCounterPost } from "./counter";
 import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
+import { handleHealthGet } from "./health";
 
 const db = createCounterDb();
 setupActivityTable(db);
+const SERVER_START = Date.now();
 
 export function createServer(port?: number) {
   return serve({
     port,
     routes: {
       "/*": index,
+
+      "/api/health": {
+        GET(_req) {
+          return handleHealthGet(db, SERVER_START);
+        },
+      },
 
       "/api/hello": {
         async GET(_req) {
