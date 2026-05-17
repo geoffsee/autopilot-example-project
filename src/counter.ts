@@ -116,6 +116,12 @@ export function resetNamedCounter(db: Database, name: string): number | null {
   return result === null ? null : 0;
 }
 
+export function getLeaderboard(db: Database, limit: number): { name: string; value: number }[] {
+  return db
+    .query("SELECT name, value FROM counter WHERE name IS NOT NULL ORDER BY value DESC LIMIT ?")
+    .all(limit) as { name: string; value: number }[];
+}
+
 export async function handleNamedCounterPost(
   req: Request,
   db: Database,
