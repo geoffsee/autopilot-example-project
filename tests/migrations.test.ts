@@ -62,3 +62,16 @@ test("idempotent — second run does not duplicate _migrations rows", async () =
   ).all();
   expect(rows).toHaveLength(1);
 });
+
+test("applies multiple migrations in lexicographic order", async () => {
+  await writeFile(join(tmpDir, "002_second.sql"), "CREATE TABLE second (id INTEGER PRIMARY KEY);");
+  await runMigrations(db, tmpDir);
+  const rows = db.query("SELECT version FROM _migrations ORDER BY version").all() as { version: string }[];
+  expect(rows.map(r => r.version)).toEqual(["001_initial", "002_second"]);
+  const tables = db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='second'").all();
+  expect(tables).toHaveLength(1);
+});
+
+test("throws when migrations directory does not exist", async () => {
+  expect(runMigrations(db, "/nonexistent/path")).rejects.toThrow("Migrations directory not found");
+});

@@ -1,11 +1,13 @@
 import { Database } from "bun:sqlite";
-import { existsSync } from "node:fs";
+import { statSync } from "node:fs";
 import { join } from "node:path";
 
 export async function runMigrations(db: Database, migrationsDir?: string): Promise<void> {
   const dir = migrationsDir ?? join(import.meta.dir, "..", "migrations");
 
-  if (!existsSync(dir)) {
+  let stat: ReturnType<typeof statSync> | undefined;
+  try { stat = statSync(dir); } catch { /* not found */ }
+  if (!stat?.isDirectory()) {
     throw new Error(`Migrations directory not found: ${dir}`);
   }
 
