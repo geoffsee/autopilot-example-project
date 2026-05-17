@@ -100,6 +100,7 @@ function ActivityFeed() {
   const [entries, setEntries] = useState<ActivityEntry[]>([]);
   const [total, setTotal] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const { connected, subscribe } = useContext(WsContext);
   const listRef = useRef<HTMLUListElement>(null);
   const lastSeenIdRef = useRef<number | null>(null);
@@ -109,7 +110,10 @@ function ActivityFeed() {
       ? `/api/counter/history?limit=${PAGE_SIZE}&before=${beforeId}`
       : `/api/counter/history?limit=${PAGE_SIZE}`;
     const res = await fetch(url);
-    if (!res.ok) return;
+    if (!res.ok) {
+      console.error(`Failed to fetch activity history: ${res.status} ${res.statusText}`);
+      return;
+    }
     const data = await res.json() as { entries: ActivityEntry[]; total: number };
     setTotal(data.total);
     return data.entries;
@@ -129,6 +133,7 @@ function ActivityFeed() {
       if (msg.type === "activity_history") {
         setEntries(msg.entries);
         lastSeenIdRef.current = msg.entries[msg.entries.length - 1]?.id ?? null;
+        fetchPage(null);
       } else if (msg.type === "activity") {
         setEntries((prev) => [msg.entry, ...prev].slice(0, 200));
         setTotal((t) => t + 1);
@@ -138,11 +143,14 @@ function ActivityFeed() {
 
   const handleLoadMore = async () => {
     setLoadingMore(true);
+    setLoadError(null);
     try {
       const page = await fetchPage(lastSeenIdRef.current);
       if (page) {
         setEntries((prev) => [...prev, ...page]);
         lastSeenIdRef.current = page[page.length - 1]?.id ?? lastSeenIdRef.current;
+      } else {
+        setLoadError("Failed to load more entries.");
       }
     } finally {
       setLoadingMore(false);
@@ -167,6 +175,7 @@ function ActivityFeed() {
           ))
         )}
       </ul>
+      {loadError && <p className="load-error">{loadError}</p>}
       {hasMore && (
         <button onClick={handleLoadMore} disabled={loadingMore}>
           {loadingMore ? "Loading…" : `Load more (${total - entries.length} remaining)`}
