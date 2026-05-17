@@ -194,19 +194,18 @@ test("POST /api/counter/:name broadcasts counter update with name over WebSocket
     ws.onerror = () => reject(new Error("WebSocket connection failed"));
   });
 
-  // drain the activity_history burst sent on connect
-  await new Promise<void>((resolve) => {
-    ws.onmessage = (e) => {
-      const msg = JSON.parse(e.data as string) as { type: string };
-      if (msg.type === "activity_history") resolve();
-    };
-  });
-
+  // Install a single handler that first waits for activity_history, then captures the counter broadcast.
+  // Setting it up before the fetch eliminates the race window between the two assignments.
+  let activityHistorySeen = false;
   const msgPromise = new Promise<{ type: string; name: string; count: number }>((resolve, reject) => {
     const t = setTimeout(() => reject(new Error("timed out waiting for WS broadcast")), 3000);
     ws.onmessage = (e) => {
       const msg = JSON.parse(e.data as string) as { type: string; name?: string; count: number };
-      if (msg.type === "counter" && msg.name !== undefined) {
+      if (msg.type === "activity_history") {
+        activityHistorySeen = true;
+        return;
+      }
+      if (activityHistorySeen && msg.type === "counter" && msg.name !== undefined) {
         clearTimeout(t);
         resolve(msg as { type: string; name: string; count: number });
       }

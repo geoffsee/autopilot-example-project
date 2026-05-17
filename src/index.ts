@@ -9,6 +9,7 @@ import {
   setupNamedCounters,
   getNamedCount,
   handleNamedCounterPost,
+  resetNamedCounter,
 } from "./counter";
 import { setupActivityTable, logActivity, getRecentActivity, clearActivity } from "./activity";
 
@@ -85,6 +86,15 @@ export function createServer(port?: number, database?: Database) {
             server.publish("activity", JSON.stringify({ type: "activity", entry }));
           }
           return response;
+        },
+        DELETE(req, server) {
+          const { name } = req.params;
+          if (!isValidCounterName(name)) {
+            return Response.json({ error: "Invalid counter name" }, { status: 400 });
+          }
+          resetNamedCounter(db, name);
+          server.publish("counter", JSON.stringify({ type: "counter", name, count: 0 }));
+          return Response.json({ name, count: 0 });
         },
       },
 

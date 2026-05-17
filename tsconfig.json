@@ -21,6 +21,7 @@
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
 
+    // TODO: noPropertyAccessFromIndexSignature is deprecated in TS 6.0; migrate or remove before upgrading
     "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
