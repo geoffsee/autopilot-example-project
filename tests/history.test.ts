@@ -19,8 +19,8 @@ afterAll(async () => {
 test("GET /api/counter/history exists in createServer and returns 200", async () => {
   const res = await fetch(`${mainServer.url.origin}/api/counter/history`);
   expect(res.status).toBe(200);
-  const body = await res.json() as ActivityEntry[];
-  expect(Array.isArray(body)).toBe(true);
+  const body = await res.json() as { entries: ActivityEntry[] };
+  expect(Array.isArray(body.entries)).toBe(true);
 });
 
 // Behavioural tests against an isolated in-memory server
@@ -32,7 +32,7 @@ function makeIsolatedServer() {
     routes: {
       "/api/counter/history": {
         GET(_req) {
-          return Response.json(getRecentActivity(db));
+          return Response.json({ entries: getRecentActivity(db) });
         },
       },
       "/api/counter": {
@@ -52,11 +52,11 @@ test("GET /api/counter/history returns empty array on fresh database", async () 
   try {
     const res = await fetch(`http://localhost:${server.port}/api/counter/history`);
     expect(res.status).toBe(200);
-    const body = await res.json() as ActivityEntry[];
-    expect(Array.isArray(body)).toBe(true);
-    expect(body).toHaveLength(0);
+    const body = await res.json() as { entries: ActivityEntry[] };
+    expect(Array.isArray(body.entries)).toBe(true);
+    expect(body.entries).toHaveLength(0);
   } finally {
-    server.stop();
+    await server.stop();
     db.close();
   }
 });
@@ -67,14 +67,14 @@ test("GET /api/counter/history returns single entry after one increment", async 
     await fetch(`http://localhost:${server.port}/api/counter`, { method: "POST" });
     const res = await fetch(`http://localhost:${server.port}/api/counter/history`);
     expect(res.status).toBe(200);
-    const body = await res.json() as ActivityEntry[];
-    expect(Array.isArray(body)).toBe(true);
-    expect(body).toHaveLength(1);
-    expect(body[0]!.action).toBe("counter.increment");
-    expect(typeof body[0]!.timestamp).toBe("string");
-    expect(typeof body[0]!.id).toBe("number");
+    const body = await res.json() as { entries: ActivityEntry[] };
+    expect(Array.isArray(body.entries)).toBe(true);
+    expect(body.entries).toHaveLength(1);
+    expect(body.entries[0]!.action).toBe("counter.increment");
+    expect(typeof body.entries[0]!.timestamp).toBe("string");
+    expect(typeof body.entries[0]!.id).toBe("number");
   } finally {
-    server.stop();
+    await server.stop();
     db.close();
   }
 });
@@ -87,14 +87,14 @@ test("GET /api/counter/history returns multiple entries in descending order", as
     await fetch(`http://localhost:${server.port}/api/counter`, { method: "POST" });
     const res = await fetch(`http://localhost:${server.port}/api/counter/history`);
     expect(res.status).toBe(200);
-    const body = await res.json() as ActivityEntry[];
-    expect(Array.isArray(body)).toBe(true);
-    expect(body).toHaveLength(3);
-    for (let i = 0; i < body.length - 1; i++) {
-      expect(body[i]!.id).toBeGreaterThan(body[i + 1]!.id);
+    const body = await res.json() as { entries: ActivityEntry[] };
+    expect(Array.isArray(body.entries)).toBe(true);
+    expect(body.entries).toHaveLength(3);
+    for (let i = 0; i < body.entries.length - 1; i++) {
+      expect(body.entries[i]!.id).toBeGreaterThan(body.entries[i + 1]!.id);
     }
   } finally {
-    server.stop();
+    await server.stop();
     db.close();
   }
 });

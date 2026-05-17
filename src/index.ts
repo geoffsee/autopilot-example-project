@@ -48,7 +48,7 @@ export function createServer(port?: number) {
 
       "/api/counter/history": {
         GET(_req) {
-          return Response.json(getRecentActivity(db));
+          return Response.json({ entries: getRecentActivity(db) });
         },
       },
 
