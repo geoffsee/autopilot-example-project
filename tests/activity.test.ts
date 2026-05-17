@@ -1,7 +1,11 @@
 import { expect, test, beforeAll, afterAll } from "bun:test";
 import { serve } from "bun";
 import { createCounterDb, handleCounterPost } from "../src/counter";
-import { setupActivityTable, logActivity, getRecentActivity, clearActivity } from "../src/activity";
+import { setupActivityTable, logActivity, getRecentActivity } from "../src/activity";
+
+function clearActivity(db: import("bun:sqlite").Database): void {
+  db.run("DELETE FROM activity");
+}
 
 // Unit tests for activity DB functions
 test("getRecentActivity returns empty array on fresh DB", () => {
