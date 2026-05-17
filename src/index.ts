@@ -46,6 +46,12 @@ export function createServer(port?: number) {
         },
       },
 
+      "/api/counter/history": {
+        GET(_req) {
+          return Response.json(getRecentActivity(db));
+        },
+      },
+
       "/ws": (req, server) => {
         if (server.upgrade(req)) return;
         return new Response("WebSocket upgrade failed", { status: 400 });
