@@ -3,12 +3,21 @@ import index from "./index.html";
 import { createCounterDb, getCount, handleCounterPost } from "./counter";
 import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
 
-const db = createCounterDb();
-setupActivityTable(db);
+export interface ServerOptions {
+  dbPath?: string;
+  maxActivityRows?: number;
+}
 
-export function createServer(port?: number) {
+export function createServer(port?: number, options?: ServerOptions) {
+  const dbPath = options?.dbPath ?? process.env.DB_PATH ?? "./counter.db";
+  const maxActivityRows = options?.maxActivityRows ?? parseInt(process.env.MAX_ACTIVITY_ROWS ?? "20", 10);
+  const effectivePort = port ?? parseInt(process.env.PORT ?? "3000", 10);
+
+  const db = createCounterDb(dbPath);
+  setupActivityTable(db);
+
   return serve({
-    port,
+    port: effectivePort,
     routes: {
       "/*": index,
 
@@ -42,7 +51,7 @@ export function createServer(port?: number) {
 
       "/api/activity": {
         GET(_req) {
-          return Response.json({ entries: getRecentActivity(db) });
+          return Response.json({ entries: getRecentActivity(db, maxActivityRows) });
         },
       },
 
@@ -56,7 +65,7 @@ export function createServer(port?: number) {
       open(ws) {
         ws.subscribe("counter");
         ws.subscribe("activity");
-        const entries = getRecentActivity(db);
+        const entries = getRecentActivity(db, maxActivityRows);
         ws.send(JSON.stringify({ type: "activity_history", entries }));
       },
       message(_ws, _msg) {},
