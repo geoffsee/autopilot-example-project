@@ -151,6 +151,16 @@ describe("counter history HTTP integration", () => {
     expect(body.entries).toHaveLength(2);
   });
 
+  test("?limit= is capped at 100 server-side", async () => {
+    const name = `hist_cap_${Date.now()}`;
+    for (let i = 0; i < 110; i++) {
+      await fetch(`${baseUrl}/api/counter/${name}`, { method: "POST" });
+    }
+    const res = await fetch(`${baseUrl}/api/counter/${name}/history?limit=200`);
+    const body = await res.json() as { entries: unknown[] };
+    expect(body.entries.length).toBeLessThanOrEqual(100);
+  });
+
   test("?offset= skips entries", async () => {
     const name = `hist_off_${Date.now()}`;
     for (let i = 0; i < 3; i++) {
