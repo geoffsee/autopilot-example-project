@@ -3,10 +3,6 @@ import { serve } from "bun";
 import { createCounterDb, handleCounterPost } from "../src/counter";
 import { setupActivityTable, logActivity, getRecentActivity } from "../src/activity";
 
-function clearActivity(db: import("bun:sqlite").Database): void {
-  db.run("DELETE FROM activity");
-}
-
 // Unit tests for activity DB functions
 test("getRecentActivity returns empty array on fresh DB", () => {
   const db = createCounterDb(":memory:");
@@ -42,16 +38,6 @@ test("getRecentActivity respects limit", () => {
   setupActivityTable(db);
   for (let i = 0; i < 25; i++) logActivity(db, `action.${i}`);
   expect(getRecentActivity(db, 10)).toHaveLength(10);
-  db.close();
-});
-
-test("clearActivity removes all entries", () => {
-  const db = createCounterDb(":memory:");
-  setupActivityTable(db);
-  logActivity(db, "action.one");
-  logActivity(db, "action.two");
-  clearActivity(db);
-  expect(getRecentActivity(db)).toEqual([]);
   db.close();
 });
 
