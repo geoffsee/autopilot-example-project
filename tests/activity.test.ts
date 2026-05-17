@@ -250,10 +250,9 @@ test("POST /api/counter rejects negative increment", async () => {
 test("GET /api/counter/history returns default page with total", async () => {
   const res = await fetch(`${baseUrl}/api/counter/history`);
   expect(res.status).toBe(200);
-  const body = await res.json() as { entries: unknown[]; total: number; limit: number };
+  const body = await res.json() as { entries: unknown[]; total: number };
   expect(Array.isArray(body.entries)).toBe(true);
   expect(typeof body.total).toBe("number");
-  expect(body.limit).toBe(20);
 });
 
 test("GET /api/counter/history?limit=2 returns at most 2 entries", async () => {
@@ -263,9 +262,8 @@ test("GET /api/counter/history?limit=2 returns at most 2 entries", async () => {
 
   const res = await fetch(`${baseUrl}/api/counter/history?limit=2`);
   expect(res.status).toBe(200);
-  const body = await res.json() as { entries: unknown[]; total: number; limit: number };
+  const body = await res.json() as { entries: unknown[]; total: number };
   expect(body.entries.length).toBeLessThanOrEqual(2);
-  expect(body.limit).toBe(2);
   expect(body.total).toBeGreaterThanOrEqual(3);
 });
 

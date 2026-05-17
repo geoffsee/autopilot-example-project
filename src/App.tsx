@@ -119,7 +119,8 @@ function ActivityFeed() {
         setEntries(msg.entries);
         setTotal(msg.total);
       } else if (msg.type === "activity") {
-        setEntries((prev) => [msg.entry, ...prev].slice(0, 200));
+        // cap at PAGE_SIZE * 10 so WS prepends don't evict loaded pages mid-session
+        setEntries((prev) => [msg.entry, ...prev].slice(0, PAGE_SIZE * 10));
         setTotal((t) => t + 1);
       }
     });

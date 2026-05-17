@@ -49,5 +49,5 @@ export function handleHistoryRequest(db: Database, req: Request): Response {
     ? getActivityBefore(db, beforeId, limit)
     : getRecentActivity(db, limit);
   const total = getActivityCount(db);
-  return Response.json({ entries, total, limit });
+  return Response.json({ entries, total });
 }
