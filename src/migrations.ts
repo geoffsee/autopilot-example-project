@@ -19,10 +19,11 @@ export function runMigrations(db: Database, migrationsDir?: string): void {
     db.run("INSERT INTO _migrations (version) VALUES (?)", [ver]);
   });
 
+  const checkApplied = db.query("SELECT 1 FROM _migrations WHERE version = ?");
+
   for (const file of files) {
     const version = file.replace(/\.sql$/, "");
-    const already = db.query("SELECT 1 FROM _migrations WHERE version = ?").get(version);
-    if (already) continue;
+    if (checkApplied.get(version)) continue;
 
     const sql = readFileSync(join(dir, file), "utf8");
     applyMigration(version, sql);
