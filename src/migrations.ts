@@ -16,17 +16,20 @@ export async function runMigrations(db: Database, migrationsDir?: string): Promi
 
   const applyMigration = db.transaction((ver: string, sql: string) => {
     db.exec(sql);
-    db.run("INSERT INTO _migrations (version) VALUES (?)", [ver]);
+    db.run("INSERT OR IGNORE INTO _migrations (version) VALUES (?)", [ver]);
   });
 
   const checkApplied = db.query("SELECT 1 FROM _migrations WHERE version = ?");
 
-  for (const file of files) {
-    const version = file.replace(/\.sql$/, "");
-    if (checkApplied.get(version)) continue;
+  try {
+    for (const file of files) {
+      const version = file.replace(/\.sql$/, "");
+      if (checkApplied.get(version)) continue;
 
-    const sql = await Bun.file(join(dir, file)).text();
-    applyMigration(version, sql);
+      const sql = await Bun.file(join(dir, file)).text();
+      applyMigration(version, sql);
+    }
+  } finally {
+    checkApplied.finalize();
   }
-  checkApplied.finalize();
 }
