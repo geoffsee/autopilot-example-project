@@ -17,15 +17,28 @@ Last updated: 2026-05-17
 
 ## In-Flight
 
-None. Repo is clean.
+| Feature | Issue | Status |
+|---------|-------|--------|
+| Named Counters `GET\|POST /api/counter/:name` | [#109](https://github.com/geoffsee/autopilot-example-project/issues/109) | 🔴 Not Started |
+| Health Check `GET /api/health` | [#110](https://github.com/geoffsee/autopilot-example-project/issues/110) | 🔴 Not Started |
+| ENV-Var Config (PORT, DB_PATH, MAX_ACTIVITY_ROWS) | [#111](https://github.com/geoffsee/autopilot-example-project/issues/111) | 🔴 Not Started |
+| Signed Delta (Negative Increments) | [#112](https://github.com/geoffsee/autopilot-example-project/issues/112) | 🔴 Not Started |
+| Counter Reset `DELETE /api/counter/:name` | [#113](https://github.com/geoffsee/autopilot-example-project/issues/113) | 🔴 Not Started (blocked by #109) |
+| Activity Filtering `?action=&limit=` | [#114](https://github.com/geoffsee/autopilot-example-project/issues/114) | 🔴 Not Started |
+| Leaderboard `GET /api/leaderboard` | [#115](https://github.com/geoffsee/autopilot-example-project/issues/115) | 🔴 Not Started (blocked by #109) |
+| Graceful Shutdown (SIGTERM Handler) | [#116](https://github.com/geoffsee/autopilot-example-project/issues/116) | 🔴 Not Started |
+| Counter History `GET /api/counter/:name/history` | [#117](https://github.com/geoffsee/autopilot-example-project/issues/117) | 🔴 Not Started (blocked by #109) |
+| Rate Limiting per-IP on Write Endpoints | [#118](https://github.com/geoffsee/autopilot-example-project/issues/118) | 🔴 Not Started |
+
+Sprint tracker: [#119](https://github.com/geoffsee/autopilot-example-project/issues/119)
 
 ## Strategic Direction
 
 Strategic review: [#107](https://github.com/geoffsee/autopilot-example-project/issues/107)
 
 Top priorities per strategic review:
-1. **C1** — Named counters `GET|POST /api/counter/:name` (Builder / End-User, S)
-2. **F2** — Health check `GET /api/health` (Operator, XS)
-3. **F3** — ENV-var config: PORT, DB_PATH, MAX_ACTIVITY_ROWS (Operator, XS)
-4. **C3** — Signed delta / negative increments (Builder, XS)
-5. **C2** — Counter reset `DELETE /api/counter/:name` (Operator, XS, after C1)
+1. **C1** — Named counters `GET|POST /api/counter/:name` (Builder / End-User, S) — [#109](https://github.com/geoffsee/autopilot-example-project/issues/109)
+2. **F2** — Health check `GET /api/health` (Operator, XS) — [#110](https://github.com/geoffsee/autopilot-example-project/issues/110)
+3. **F3** — ENV-var config: PORT, DB_PATH, MAX_ACTIVITY_ROWS (Operator, XS) — [#111](https://github.com/geoffsee/autopilot-example-project/issues/111)
+4. **C3** — Signed delta / negative increments (Builder, XS) — [#112](https://github.com/geoffsee/autopilot-example-project/issues/112)
+5. **C2** — Counter reset `DELETE /api/counter/:name` (Operator, XS, after C1) — [#113](https://github.com/geoffsee/autopilot-example-project/issues/113)

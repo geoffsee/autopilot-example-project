@@ -18,17 +18,23 @@ Last updated: 2026-05-17
 
 ## Recommended Backlog (from Strategic Review #107)
 
-Sprint planning will turn these into trackable sprint issues. Do not create child issues here.
+Converted to sprint issues — see Sprint #119 below.
 
-| ID | Title | Sizing | Depends On |
-|----|-------|--------|-----------|
-| C1 | Named counters `GET\|POST /api/counter/:name` | S | — |
-| F2 | Health check `GET /api/health` | XS | — |
-| F3 | ENV-var config (PORT, DB_PATH, MAX_ACTIVITY_ROWS) | XS | — |
-| C3 | Signed delta (negative increments) | XS | — |
-| C2 | Counter reset `DELETE /api/counter/:name` | XS | C1 |
-| C4 | Activity filtering `?action=&limit=` | S | — |
-| W1 | Leaderboard `GET /api/leaderboard` | S | C1 |
-| F4 | Graceful shutdown on SIGTERM | S | — |
-| C5 | Counter history `GET /api/counter/:name/history` | M | C1 |
-| C6 | Rate limiting per-IP on write endpoints | M | — |
+## Sprint: Named counters, operator hardening, and observability (#119)
+
+Tracker: [#119](https://github.com/geoffsee/autopilot-example-project/issues/119)
+
+### Task Dependency Hierarchy
+
+| Issue | Depends On | Depended On By | Layer | Status |
+|-------|-----------|----------------|-------|--------|
+| [#109](https://github.com/geoffsee/autopilot-example-project/issues/109) C1: Named Counters `GET\|POST /api/counter/:name` | — | #113, #115, #117 | 0 | 🔴 Not Started |
+| [#110](https://github.com/geoffsee/autopilot-example-project/issues/110) F2: Health Check `GET /api/health` | — | — | 0 | 🔴 Not Started |
+| [#111](https://github.com/geoffsee/autopilot-example-project/issues/111) F3: ENV-Var Config (PORT, DB_PATH, MAX_ACTIVITY_ROWS) | — | — | 0 | 🔴 Not Started |
+| [#112](https://github.com/geoffsee/autopilot-example-project/issues/112) C3: Signed Delta (Negative Increments) | — | — | 0 | 🔴 Not Started |
+| [#114](https://github.com/geoffsee/autopilot-example-project/issues/114) C4: Activity Filtering `?action=&limit=` | — | — | 0 | 🔴 Not Started |
+| [#116](https://github.com/geoffsee/autopilot-example-project/issues/116) F4: Graceful Shutdown (SIGTERM Handler) | — | — | 0 | 🔴 Not Started |
+| [#118](https://github.com/geoffsee/autopilot-example-project/issues/118) C6: Rate Limiting (per-IP on Write Endpoints) | — | — | 0 | 🔴 Not Started |
+| [#113](https://github.com/geoffsee/autopilot-example-project/issues/113) C2: Counter Reset `DELETE /api/counter/:name` | #109 | — | 1 | 🔴 Not Started |
+| [#115](https://github.com/geoffsee/autopilot-example-project/issues/115) W1: Leaderboard `GET /api/leaderboard` | #109 | — | 1 | 🔴 Not Started |
+| [#117](https://github.com/geoffsee/autopilot-example-project/issues/117) C5: Counter History `GET /api/counter/:name/history` | #109 | — | 1 | 🔴 Not Started |
