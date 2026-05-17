@@ -2,11 +2,16 @@ import { serve } from "bun";
 import index from "./index.html";
 import { createCounterDb, getCount, handleCounterPost } from "./counter";
 import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
+import { RateLimiter } from "./rate-limiter";
 
 const db = createCounterDb();
 setupActivityTable(db);
 
-export function createServer(port?: number) {
+const defaultRps = parseInt(process.env.RATE_LIMIT_RPS ?? "10", 10);
+
+export function createServer(port?: number, rateLimiter?: RateLimiter) {
+  const limiter = rateLimiter ?? new RateLimiter(defaultRps);
+
   return serve({
     port,
     routes: {
@@ -30,6 +35,10 @@ export function createServer(port?: number) {
           return Response.json({ count: getCount(db) });
         },
         async POST(req, server) {
+          const ip = server.requestIP(req)?.address ?? "unknown";
+          if (!limiter.check(ip)) {
+            return Response.json({ error: "Too Many Requests" }, { status: 429 });
+          }
           const { response, count } = await handleCounterPost(req, db);
           if (response.ok && typeof count === "number") {
             server.publish("counter", JSON.stringify({ type: "counter", count }));
