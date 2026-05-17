@@ -25,13 +25,12 @@ test("MAX_ACTIVITY_ROWS limits /api/activity to non-default row count", async ()
 
 test("PORT env var: server binds to the port specified in process.env.PORT", async () => {
   const prev = process.env.PORT;
-  process.env.PORT = "0";
+  const targetPort = 19876;
+  process.env.PORT = String(targetPort);
   const s = createServer(undefined, { dbPath: ":memory:" });
   try {
     const assignedPort = parseInt(new URL(s.url.origin).port, 10);
-    expect(assignedPort).toBeGreaterThan(0);
-    const res = await fetch(`${s.url.origin}/api/hello`);
-    expect(res.status).toBe(200);
+    expect(assignedPort).toBe(targetPort);
   } finally {
     await s.stop();
     if (prev === undefined) delete process.env.PORT;
