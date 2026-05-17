@@ -21,6 +21,11 @@ export class RateLimiter {
     bucket.tokens = Math.min(this.rps, bucket.tokens + elapsed * this.rps);
     bucket.lastRefill = now;
 
+    if (bucket.tokens >= this.rps - 0.01) {
+      // Fully replenished — evict to reclaim memory.
+      this.buckets.delete(ip);
+    }
+
     if (bucket.tokens >= 1) {
       bucket.tokens -= 1;
       return true;

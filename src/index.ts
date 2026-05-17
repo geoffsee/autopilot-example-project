@@ -7,7 +7,7 @@ import { RateLimiter } from "./rate-limiter";
 const db = createCounterDb();
 setupActivityTable(db);
 
-const defaultRps = parseInt(process.env.RATE_LIMIT_RPS ?? "10", 10);
+const defaultRps = Math.max(1, parseInt(process.env.RATE_LIMIT_RPS ?? "10", 10));
 
 export function createServer(port?: number, rateLimiter?: RateLimiter) {
   const limiter = rateLimiter ?? new RateLimiter(defaultRps);
@@ -35,6 +35,8 @@ export function createServer(port?: number, rateLimiter?: RateLimiter) {
           return Response.json({ count: getCount(db) });
         },
         async POST(req, server) {
+          // Requests with no detectable IP share one bucket; this is intentional and
+          // conservative — they are still subject to rate limiting.
           const ip = server.requestIP(req)?.address ?? "unknown";
           if (!limiter.check(ip)) {
             return Response.json({ error: "Too Many Requests" }, { status: 429 });
