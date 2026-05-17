@@ -11,7 +11,7 @@ import {
   handleNamedCounterPost,
   resetNamedCounter,
 } from "./counter";
-import { setupActivityTable, logActivity, getRecentActivity, clearActivity } from "./activity";
+import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
 
 const RESERVED_NAMES = new Set(["reset"]);
 
@@ -58,12 +58,8 @@ export function createServer(port?: number, database?: Database) {
 
       "/api/counter/reset": {
         POST(_req, server) {
-          db.transaction(() => {
-            resetCounter(db);
-            clearActivity(db);
-          })();
+          resetCounter(db);
           server.publish("counter", JSON.stringify({ type: "counter", count: 0 }));
-          server.publish("activity", JSON.stringify({ type: "activity_clear" }));
           return Response.json({ count: 0 });
         },
       },
