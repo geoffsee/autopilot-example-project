@@ -63,7 +63,8 @@ export function incrementNamedCounter(db: Database, name: string, amount: number
        ON CONFLICT(name) DO UPDATE SET value = value + excluded.value
        RETURNING value`
     )
-    .get(name, amount) as { value: number };
+    .get(name, amount) as { value: number } | null;
+  if (!row) throw new Error("incrementNamedCounter: INSERT...RETURNING returned no row");
   return row.value;
 }
 

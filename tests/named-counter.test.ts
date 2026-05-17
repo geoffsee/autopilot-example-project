@@ -1,4 +1,4 @@
-import { test, expect, beforeEach, afterEach, beforeAll, afterAll } from "bun:test";
+import { test, expect, describe, beforeEach, afterEach, beforeAll, afterAll } from "bun:test";
 import { Database } from "bun:sqlite";
 import {
   createCounterDb,
@@ -12,111 +12,113 @@ import { createServer } from "../src/index";
 
 // --- Unit tests ---
 
-let db: Database;
+describe("unit tests", () => {
+  let db: Database;
 
-beforeEach(() => {
-  db = new Database(":memory:");
-  setupNamedCounters(db);
-});
-
-afterEach(() => {
-  db.close();
-});
-
-test("getNamedCount returns 0 for a new counter name", () => {
-  expect(getNamedCount(db, "foo")).toBe(0);
-  expect(getNamedCount(db, "bar")).toBe(0);
-});
-
-test("incrementNamedCounter starts at 0 and increments", () => {
-  expect(incrementNamedCounter(db, "foo", 1)).toBe(1);
-  expect(incrementNamedCounter(db, "foo", 3)).toBe(4);
-});
-
-test("named counters are independent", () => {
-  incrementNamedCounter(db, "foo", 5);
-  incrementNamedCounter(db, "bar", 2);
-  expect(getNamedCount(db, "foo")).toBe(5);
-  expect(getNamedCount(db, "bar")).toBe(2);
-});
-
-test("resetNamedCounter sets counter to 0 and returns 0", () => {
-  incrementNamedCounter(db, "foo", 10);
-  expect(resetNamedCounter(db, "foo")).toBe(0);
-  expect(getNamedCount(db, "foo")).toBe(0);
-});
-
-test("resetNamedCounter on foo does not affect bar", () => {
-  incrementNamedCounter(db, "foo", 5);
-  incrementNamedCounter(db, "bar", 3);
-  resetNamedCounter(db, "foo");
-  expect(getNamedCount(db, "bar")).toBe(3);
-});
-
-function makeNamedPostRequest(name: string, body?: unknown, contentType = "application/json"): Request {
-  if (body === undefined) {
-    return new Request(`http://localhost/api/counter/${name}`, { method: "POST" });
-  }
-  return new Request(`http://localhost/api/counter/${name}`, {
-    method: "POST",
-    headers: { "content-type": contentType },
-    body: typeof body === "string" ? body : JSON.stringify(body),
+  beforeEach(() => {
+    db = new Database(":memory:");
+    setupNamedCounters(db);
   });
-}
 
-test("handleNamedCounterPost increments by 1 with no body", async () => {
-  const { response, count } = await handleNamedCounterPost(makeNamedPostRequest("foo"), db, "foo");
-  expect(response.status).toBe(200);
-  expect(count).toBe(1);
-  const json = (await response.json()) as { name: string; count: number };
-  expect(json.name).toBe("foo");
-  expect(json.count).toBe(1);
-});
+  afterEach(() => {
+    db.close();
+  });
 
-test("handleNamedCounterPost increments by custom amount", async () => {
-  const { response, count } = await handleNamedCounterPost(
-    makeNamedPostRequest("foo", { increment: 5 }),
-    db,
-    "foo"
-  );
-  expect(response.status).toBe(200);
-  expect(count).toBe(5);
-  const json = (await response.json()) as { name: string; count: number };
-  expect(json.count).toBe(5);
-});
+  test("getNamedCount returns 0 for a new counter name", () => {
+    expect(getNamedCount(db, "foo")).toBe(0);
+    expect(getNamedCount(db, "bar")).toBe(0);
+  });
 
-test("handleNamedCounterPost: two named counters are independent", async () => {
-  await handleNamedCounterPost(makeNamedPostRequest("foo", { increment: 3 }), db, "foo");
-  await handleNamedCounterPost(makeNamedPostRequest("bar", { increment: 7 }), db, "bar");
-  expect(getNamedCount(db, "foo")).toBe(3);
-  expect(getNamedCount(db, "bar")).toBe(7);
-});
+  test("incrementNamedCounter starts at 0 and increments", () => {
+    expect(incrementNamedCounter(db, "foo", 1)).toBe(1);
+    expect(incrementNamedCounter(db, "foo", 3)).toBe(4);
+  });
 
-test("handleNamedCounterPost returns 400 for invalid increment", async () => {
-  const { response } = await handleNamedCounterPost(
-    makeNamedPostRequest("foo", { increment: -1 }),
-    db,
-    "foo"
-  );
-  expect(response.status).toBe(400);
-});
+  test("named counters are independent", () => {
+    incrementNamedCounter(db, "foo", 5);
+    incrementNamedCounter(db, "bar", 2);
+    expect(getNamedCount(db, "foo")).toBe(5);
+    expect(getNamedCount(db, "bar")).toBe(2);
+  });
 
-test("handleNamedCounterPost returns 400 for non-integer increment", async () => {
-  const { response } = await handleNamedCounterPost(
-    makeNamedPostRequest("foo", { increment: 1.5 }),
-    db,
-    "foo"
-  );
-  expect(response.status).toBe(400);
-});
+  test("resetNamedCounter sets counter to 0 and returns 0", () => {
+    incrementNamedCounter(db, "foo", 10);
+    expect(resetNamedCounter(db, "foo")).toBe(0);
+    expect(getNamedCount(db, "foo")).toBe(0);
+  });
 
-test("handleNamedCounterPost returns 400 for increment exceeding 1000000", async () => {
-  const { response } = await handleNamedCounterPost(
-    makeNamedPostRequest("foo", { increment: 1_000_001 }),
-    db,
-    "foo"
-  );
-  expect(response.status).toBe(400);
+  test("resetNamedCounter on foo does not affect bar", () => {
+    incrementNamedCounter(db, "foo", 5);
+    incrementNamedCounter(db, "bar", 3);
+    resetNamedCounter(db, "foo");
+    expect(getNamedCount(db, "bar")).toBe(3);
+  });
+
+  function makeNamedPostRequest(name: string, body?: unknown, contentType = "application/json"): Request {
+    if (body === undefined) {
+      return new Request(`http://localhost/api/counter/${name}`, { method: "POST" });
+    }
+    return new Request(`http://localhost/api/counter/${name}`, {
+      method: "POST",
+      headers: { "content-type": contentType },
+      body: typeof body === "string" ? body : JSON.stringify(body),
+    });
+  }
+
+  test("handleNamedCounterPost increments by 1 with no body", async () => {
+    const { response, count } = await handleNamedCounterPost(makeNamedPostRequest("foo"), db, "foo");
+    expect(response.status).toBe(200);
+    expect(count).toBe(1);
+    const json = (await response.json()) as { name: string; count: number };
+    expect(json.name).toBe("foo");
+    expect(json.count).toBe(1);
+  });
+
+  test("handleNamedCounterPost increments by custom amount", async () => {
+    const { response, count } = await handleNamedCounterPost(
+      makeNamedPostRequest("foo", { increment: 5 }),
+      db,
+      "foo"
+    );
+    expect(response.status).toBe(200);
+    expect(count).toBe(5);
+    const json = (await response.json()) as { name: string; count: number };
+    expect(json.count).toBe(5);
+  });
+
+  test("handleNamedCounterPost: two named counters are independent", async () => {
+    await handleNamedCounterPost(makeNamedPostRequest("foo", { increment: 3 }), db, "foo");
+    await handleNamedCounterPost(makeNamedPostRequest("bar", { increment: 7 }), db, "bar");
+    expect(getNamedCount(db, "foo")).toBe(3);
+    expect(getNamedCount(db, "bar")).toBe(7);
+  });
+
+  test("handleNamedCounterPost returns 400 for invalid increment", async () => {
+    const { response } = await handleNamedCounterPost(
+      makeNamedPostRequest("foo", { increment: -1 }),
+      db,
+      "foo"
+    );
+    expect(response.status).toBe(400);
+  });
+
+  test("handleNamedCounterPost returns 400 for non-integer increment", async () => {
+    const { response } = await handleNamedCounterPost(
+      makeNamedPostRequest("foo", { increment: 1.5 }),
+      db,
+      "foo"
+    );
+    expect(response.status).toBe(400);
+  });
+
+  test("handleNamedCounterPost returns 400 for increment exceeding 1000000", async () => {
+    const { response } = await handleNamedCounterPost(
+      makeNamedPostRequest("foo", { increment: 1_000_001 }),
+      db,
+      "foo"
+    );
+    expect(response.status).toBe(400);
+  });
 });
 
 // --- Integration tests ---
@@ -236,6 +238,13 @@ test("DELETE /api/counter/:name resets the counter to 0", async () => {
 
 test("DELETE /api/counter/:name returns 400 for invalid counter name", async () => {
   const res = await fetch(`${baseUrl}/api/counter/invalid name!`, { method: "DELETE" });
+  expect(res.status).toBe(400);
+  const body = (await res.json()) as { error: string };
+  expect(typeof body.error).toBe("string");
+});
+
+test("GET /api/counter/reset returns 400 (reserved name)", async () => {
+  const res = await fetch(`${baseUrl}/api/counter/reset`);
   expect(res.status).toBe(400);
   const body = (await res.json()) as { error: string };
   expect(typeof body.error).toBe("string");

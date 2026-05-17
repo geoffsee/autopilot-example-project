@@ -13,8 +13,10 @@ import {
 } from "./counter";
 import { setupActivityTable, logActivity, getRecentActivity, clearActivity } from "./activity";
 
+const RESERVED_NAMES = new Set(["reset"]);
+
 function isValidCounterName(name: string): boolean {
-  return !!name && name.length <= 100 && /^[\w.-]+$/.test(name);
+  return name.length <= 100 && /^[\w.-]+$/.test(name) && !RESERVED_NAMES.has(name);
 }
 
 export function createServer(port?: number, database?: Database) {
