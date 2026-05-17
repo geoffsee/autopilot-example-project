@@ -21,6 +21,7 @@ test("degraded path: 503 when DB ping fails", async () => {
   const res = handleHealthGet(db, Date.now());
   expect(res.status).toBe(503);
   const body = (await res.json()) as { status: string; db: string; uptime: number };
+  expect(body.status).toBe("degraded");
   expect(body.db).not.toBe("ok");
   expect(typeof body.uptime).toBe("number");
 });
