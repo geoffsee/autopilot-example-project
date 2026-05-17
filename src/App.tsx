@@ -9,7 +9,7 @@ type ActivityEntry = { id: number; action: string; timestamp: string };
 type WsMessage =
   | { type: "counter"; count: number }
   | { type: "activity"; entry: ActivityEntry }
-  | { type: "activity_history"; entries: ActivityEntry[] };
+  | { type: "activity_history"; entries: ActivityEntry[]; total: number };
 
 type WsContextValue = {
   connected: boolean;
@@ -103,7 +103,6 @@ function ActivityFeed() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const { connected, subscribe } = useContext(WsContext);
   const listRef = useRef<HTMLUListElement>(null);
-  const lastSeenIdRef = useRef<number | null>(null);
 
   const fetchPage = useCallback(async (beforeId: number | null) => {
     const url = beforeId != null
@@ -120,25 +119,16 @@ function ActivityFeed() {
   }, []);
 
   useEffect(() => {
-    fetchPage(null).then((page) => {
-      if (page) {
-        setEntries(page);
-        lastSeenIdRef.current = page[page.length - 1]?.id ?? null;
-      }
-    });
-  }, [fetchPage]);
-
-  useEffect(() => {
     return subscribe((msg) => {
       if (msg.type === "activity_history") {
-        setEntries(msg.entries);
-        lastSeenIdRef.current = msg.entries[msg.entries.length - 1]?.id ?? null;
+        setEntries((prev) => prev.length > 0 ? prev : msg.entries);
+        setTotal((prevTotal) => prevTotal > 0 ? prevTotal : msg.total);
       } else if (msg.type === "activity") {
         setEntries((prev) => [msg.entry, ...prev].slice(0, 200));
         setTotal((t) => t + 1);
       }
     });
-  }, [subscribe, fetchPage]);
+  }, [subscribe]);
 
   const handleLoadMore = async () => {
     setLoadingMore(true);
@@ -148,7 +138,6 @@ function ActivityFeed() {
       const page = await fetchPage(cursor);
       if (page) {
         setEntries((prev) => [...prev, ...page]);
-        lastSeenIdRef.current = page[page.length - 1]?.id ?? lastSeenIdRef.current;
       } else {
         setLoadError("Failed to load more entries.");
       }

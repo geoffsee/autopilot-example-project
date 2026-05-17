@@ -74,7 +74,8 @@ export function createServer(port?: number) {
         ws.subscribe("counter");
         ws.subscribe("activity");
         const entries = getRecentActivity(db);
-        ws.send(JSON.stringify({ type: "activity_history", entries }));
+        const total = getActivityCount(db);
+        ws.send(JSON.stringify({ type: "activity_history", entries, total }));
       },
       message(_ws, _msg) {},
       close(ws) {
