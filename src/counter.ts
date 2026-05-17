@@ -109,6 +109,13 @@ export async function handleCounterPost(
   return { response: Response.json({ count: row.value }), count: row.value };
 }
 
+export function resetNamedCounter(db: Database, name: string): number | null {
+  const result = db
+    .query("UPDATE counter SET value = 0 WHERE name = ? RETURNING id")
+    .get(name) as { id: number } | null;
+  return result === null ? null : 0;
+}
+
 export function getLeaderboard(db: Database, limit: number): { name: string; value: number }[] {
   return db
     .query("SELECT name, value FROM counter WHERE name IS NOT NULL ORDER BY value DESC LIMIT ?")

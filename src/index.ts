@@ -1,6 +1,6 @@
 import { serve } from "bun";
 import index from "./index.html";
-import { createCounterDb, getCount, handleCounterPost, getNamedCount, handleNamedCounterPost, getLeaderboard } from "./counter";
+import { createCounterDb, getCount, handleCounterPost, getNamedCount, handleNamedCounterPost, resetNamedCounter, getLeaderboard } from "./counter";
 import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
 
 const db = createCounterDb();
@@ -61,6 +61,17 @@ export function createServer(port?: number) {
             server.publish("activity", JSON.stringify({ type: "activity", entry }));
           }
           return response;
+        },
+        DELETE(req, server) {
+          const name = req.params.name;
+          const result = resetNamedCounter(db, name);
+          if (result === null) {
+            return Response.json({ error: "Counter not found" }, { status: 404 });
+          }
+          const entry = logActivity(db, "counter.reset");
+          server.publish("counter", JSON.stringify({ type: "counter", name, value: 0 }));
+          server.publish("activity", JSON.stringify({ type: "activity", entry }));
+          return Response.json({ name, value: 0 });
         },
       },
 
