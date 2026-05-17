@@ -1,6 +1,6 @@
 import { serve } from "bun";
 import index from "./index.html";
-import { createCounterDb, getCount, handleCounterPost } from "./counter";
+import { createCounterDb, getCount, handleCounterPost, getNamedCount, handleNamedCounterPost } from "./counter";
 import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
 
 const db = createCounterDb();
@@ -35,6 +35,22 @@ export function createServer(port?: number) {
             server.publish("counter", JSON.stringify({ type: "counter", count }));
             const entry = logActivity(db, "counter.increment");
             server.publish("activity", JSON.stringify({ type: "activity", entry }));
+          }
+          return response;
+        },
+      },
+
+      "/api/counter/:name": {
+        GET(req) {
+          const name = req.params.name;
+          const value = getNamedCount(db, name);
+          return Response.json({ name, value });
+        },
+        async POST(req, server) {
+          const name = req.params.name;
+          const { response, value } = await handleNamedCounterPost(req, db, name);
+          if (response.ok && typeof value === "number") {
+            server.publish("counter", JSON.stringify({ type: "counter", name, value }));
           }
           return response;
         },
