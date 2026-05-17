@@ -1,7 +1,7 @@
 import { expect, test, beforeAll, afterAll } from "bun:test";
 import { serve } from "bun";
 import { createCounterDb, handleCounterPost } from "../src/counter";
-import { setupActivityTable, logActivity, getRecentActivity, getActivityBefore, getActivityCount } from "../src/activity";
+import { setupActivityTable, logActivity, getRecentActivity, getActivityBefore, getActivityCount, handleHistoryRequest } from "../src/activity";
 
 // Unit tests for activity DB functions
 test("getRecentActivity returns empty array on fresh DB", () => {
@@ -97,16 +97,7 @@ beforeAll(() => {
       },
       "/api/counter/history": {
         GET(req) {
-          const url = new URL(req.url);
-          const rawLimit = parseInt(url.searchParams.get("limit") ?? "20", 10);
-          const limit = !isNaN(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 100) : 20;
-          const rawBefore = url.searchParams.get("before");
-          const beforeId = rawBefore != null ? parseInt(rawBefore, 10) : null;
-          const entries = beforeId != null && !isNaN(beforeId)
-            ? getActivityBefore(db, beforeId, limit)
-            : getRecentActivity(db, limit);
-          const total = getActivityCount(db);
-          return Response.json({ entries, total, limit });
+          return handleHistoryRequest(db, req);
         },
       },
       "/ws": (req, server) => {

@@ -109,13 +109,8 @@ function ActivityFeed() {
       ? `/api/counter/history?limit=${PAGE_SIZE}&before=${beforeId}`
       : `/api/counter/history?limit=${PAGE_SIZE}`;
     const res = await fetch(url);
-    if (!res.ok) {
-      console.error(`Failed to fetch activity history: ${res.status} ${res.statusText}`);
-      return;
-    }
-    const data = await res.json() as { entries: ActivityEntry[]; total: number };
-    setTotal(data.total);
-    return data.entries;
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    return await res.json() as { entries: ActivityEntry[]; total: number };
   }, []);
 
   useEffect(() => {
@@ -135,12 +130,11 @@ function ActivityFeed() {
     setLoadError(null);
     try {
       const cursor = entries[entries.length - 1]?.id ?? null;
-      const page = await fetchPage(cursor);
-      if (page) {
-        setEntries((prev) => [...prev, ...page]);
-      } else {
-        setLoadError("Failed to load more entries.");
-      }
+      const { entries: page, total: newTotal } = await fetchPage(cursor);
+      setEntries((prev) => [...prev, ...page]);
+      setTotal(newTotal);
+    } catch {
+      setLoadError("Failed to load more entries.");
     } finally {
       setLoadingMore(false);
     }

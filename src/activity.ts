@@ -38,3 +38,16 @@ export function getActivityCount(db: Database): number {
   const row = db.query<{ count: number }, []>("SELECT COUNT(*) as count FROM activity").get();
   return row?.count ?? 0;
 }
+
+export function handleHistoryRequest(db: Database, req: Request): Response {
+  const url = new URL(req.url);
+  const rawLimit = parseInt(url.searchParams.get("limit") ?? "20", 10);
+  const limit = !isNaN(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 100) : 20;
+  const rawBefore = url.searchParams.get("before");
+  const beforeId = rawBefore != null ? parseInt(rawBefore, 10) : null;
+  const entries = beforeId != null && !isNaN(beforeId)
+    ? getActivityBefore(db, beforeId, limit)
+    : getRecentActivity(db, limit);
+  const total = getActivityCount(db);
+  return Response.json({ entries, total, limit });
+}
