@@ -58,6 +58,8 @@ export function createServer(port?: number, database?: Database) {
       "/api/counter/reset": {
         POST(_req, server) {
           resetCounter(db);
+          const entry = logActivity(db, "counter.reset");
+          server.publish("activity", JSON.stringify({ type: "activity", entry }));
           server.publish("counter", JSON.stringify({ type: "counter", count: 0 }));
           return Response.json({ count: 0 });
         },
