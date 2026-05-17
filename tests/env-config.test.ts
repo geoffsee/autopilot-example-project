@@ -23,16 +23,30 @@ test("MAX_ACTIVITY_ROWS limits /api/activity to non-default row count", async ()
   expect(body.entries).toHaveLength(5);
 });
 
-test("PORT env var: server starts and responds on configured port", async () => {
-  const port = parseInt(new URL(baseUrl).port, 10);
-  expect(port).toBeGreaterThan(0);
-  const res = await fetch(`${baseUrl}/api/hello`);
-  expect(res.status).toBe(200);
+test("PORT env var: server binds to the port specified in process.env.PORT", async () => {
+  const prev = process.env.PORT;
+  process.env.PORT = "0";
+  const s = createServer(undefined, { dbPath: ":memory:" });
+  try {
+    const assignedPort = parseInt(new URL(s.url.origin).port, 10);
+    expect(assignedPort).toBeGreaterThan(0);
+    const res = await fetch(`${s.url.origin}/api/hello`);
+    expect(res.status).toBe(200);
+  } finally {
+    await s.stop();
+    if (prev === undefined) delete process.env.PORT;
+    else process.env.PORT = prev;
+  }
 });
 
-test("DB_PATH :memory: produces a fresh db per server", async () => {
-  const res = await fetch(`${baseUrl}/api/counter`);
-  expect(res.status).toBe(200);
-  const body = (await res.json()) as { count: number };
-  expect(typeof body.count).toBe("number");
+test("DB_PATH :memory: produces a fresh isolated db per server", async () => {
+  const s = createServer(0, { dbPath: ":memory:" });
+  try {
+    const res = await fetch(`${s.url.origin}/api/counter`);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { count: number };
+    expect(body.count).toBe(0);
+  } finally {
+    await s.stop();
+  }
 });

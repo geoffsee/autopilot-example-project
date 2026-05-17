@@ -10,8 +10,10 @@ export interface ServerOptions {
 
 export function createServer(port?: number, options?: ServerOptions) {
   const dbPath = options?.dbPath ?? process.env.DB_PATH ?? "./counter.db";
-  const maxActivityRows = options?.maxActivityRows ?? parseInt(process.env.MAX_ACTIVITY_ROWS ?? "20", 10);
-  const effectivePort = port ?? parseInt(process.env.PORT ?? "3000", 10);
+  const parsedMaxRows = parseInt(process.env.MAX_ACTIVITY_ROWS ?? "20", 10);
+  const maxActivityRows = options?.maxActivityRows ?? (Number.isFinite(parsedMaxRows) && parsedMaxRows > 0 ? parsedMaxRows : 20);
+  const parsedPort = parseInt(process.env.PORT ?? "3000", 10);
+  const effectivePort = port ?? (Number.isFinite(parsedPort) ? parsedPort : 3000);
 
   const db = createCounterDb(dbPath);
   setupActivityTable(db);
