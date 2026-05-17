@@ -143,6 +143,21 @@ test("POST with large positive delta (1000000) works", async () => {
   expect(count).toBe(1_000_000);
 });
 
+test("POST with large negative delta (-1000000) works", async () => {
+  const { response: res, count } = await handleCounterPost(makePostRequest({ increment: -1_000_000 }), db);
+  expect(res.status).toBe(200);
+  const json = await res.json() as { count: number };
+  expect(json.count).toBe(-1_000_000);
+  expect(count).toBe(-1_000_000);
+});
+
+test("POST with increment below -1000000 returns 400", async () => {
+  const { response: res } = await handleCounterPost(makePostRequest({ increment: -1_000_001 }), db);
+  expect(res.status).toBe(400);
+  const json = await res.json() as { error: string };
+  expect(typeof json.error).toBe("string");
+});
+
 test("POST with float increment returns 400", async () => {
   const { response: res } = await handleCounterPost(makePostRequest({ increment: 1.5 }), db);
   expect(res.status).toBe(400);

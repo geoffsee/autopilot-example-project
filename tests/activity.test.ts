@@ -222,5 +222,5 @@ test("POST /api/counter with negative increment decrements and returns 200", asy
   });
   expect(res.status).toBe(200);
   const json = await res.json() as { count: number };
-  expect(typeof json.count).toBe("number");
+  expect(json.count).toBe(2);
 });
