@@ -1,6 +1,6 @@
 import { serve } from "bun";
 import index from "./index.html";
-import { createCounterDb, getCount, handleCounterPost, getNamedCount, handleNamedCounterPost, resetNamedCounter, getLeaderboard } from "./counter";
+import { createCounterDb, getCount, handleCounterPost, getNamedCount, handleNamedCounterPost, getCounterHistory, resetNamedCounter, getLeaderboard } from "./counter";
 import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
 
 const db = createCounterDb();
@@ -37,6 +37,20 @@ export function createServer(port?: number) {
             server.publish("activity", JSON.stringify({ type: "activity", entry }));
           }
           return response;
+        },
+      },
+
+      "/api/counter/:name/history": {
+        GET(req) {
+          const name = req.params.name;
+          const url = new URL(req.url);
+          const limitParam = parseInt(url.searchParams.get("limit") ?? "0", 10);
+          const offsetParam = parseInt(url.searchParams.get("offset") ?? "0", 10);
+          const limit = !isNaN(limitParam) && limitParam > 0 ? limitParam : undefined;
+          const offset = !isNaN(offsetParam) && offsetParam >= 0 ? offsetParam : 0;
+          const entries = getCounterHistory(db, name, { limit, offset });
+          const effectiveLimit = Math.min(limit ?? 20, 100);
+          return Response.json({ name, limit: effectiveLimit, offset, entries });
         },
       },
 

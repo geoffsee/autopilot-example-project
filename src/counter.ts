@@ -1,5 +1,13 @@
 import { Database } from "bun:sqlite";
 
+export type HistoryEntry = {
+  id: number;
+  name: string;
+  delta: number;
+  new_value: number;
+  timestamp: string;
+};
+
 export function createCounterDb(path = "counter.db"): Database {
   const db = new Database(path);
   setupCounter(db);
@@ -35,6 +43,16 @@ export function setupCounter(db: Database): void {
     db.run(`UPDATE counter SET name = 'default' WHERE id = 1`);
     db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_counter_name ON counter(name) WHERE name IS NOT NULL`);
   }
+  db.run(`
+    CREATE TABLE IF NOT EXISTS counter_history (
+      id        INTEGER PRIMARY KEY AUTOINCREMENT,
+      name      TEXT    NOT NULL,
+      delta     INTEGER NOT NULL,
+      new_value INTEGER NOT NULL,
+      timestamp TEXT    NOT NULL
+    )
+  `);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_counter_history_name ON counter_history(name)`);
 }
 
 export function getCounterValue(db: Database): number {
@@ -57,8 +75,29 @@ export function incrementNamedCounter(db: Database, name: string, amount: number
     const row = db
       .query("UPDATE counter SET value = value + ? WHERE name = ? RETURNING value")
       .get(amount, name) as { value: number } | null;
-    return row?.value ?? 0;
+    const newValue = row?.value ?? 0;
+    if (amount !== 0) {
+      db.run(
+        "INSERT INTO counter_history (name, delta, new_value, timestamp) VALUES (?, ?, ?, ?)",
+        [name, amount, newValue, new Date().toISOString()]
+      );
+    }
+    return newValue;
   })();
+}
+
+export function getCounterHistory(
+  db: Database,
+  name: string,
+  options: { limit?: number; offset?: number } = {}
+): HistoryEntry[] {
+  const limit = Math.min((options.limit && options.limit > 0) ? options.limit : 20, 100);
+  const offset = options.offset ?? 0;
+  return db
+    .query<HistoryEntry, [string, number, number]>(
+      "SELECT id, name, delta, new_value, timestamp FROM counter_history WHERE name = ? ORDER BY id DESC LIMIT ? OFFSET ?"
+    )
+    .all(name, limit, offset);
 }
 
 async function parseIncrementBody(req: Request): Promise<{ increment: number } | { error: string; status: number }> {
