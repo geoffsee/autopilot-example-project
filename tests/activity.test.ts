@@ -289,10 +289,9 @@ test("GET /api/counter/history?before=<id> returns entries before given id", asy
   const page0Res = await fetch(`${baseUrl}/api/counter/history?limit=2`);
   const page0 = await page0Res.json() as { entries: { id: number }[] };
 
-  if (page0.entries.length >= 2) {
-    const cutId = page0.entries[1]!.id;
-    const page1Res = await fetch(`${baseUrl}/api/counter/history?limit=2&before=${cutId}`);
-    const page1 = await page1Res.json() as { entries: { id: number }[] };
-    expect(page1.entries.every((e) => e.id < cutId)).toBe(true);
-  }
+  expect(page0.entries.length).toBeGreaterThanOrEqual(2);
+  const cutId = page0.entries[1]!.id;
+  const page1Res = await fetch(`${baseUrl}/api/counter/history?limit=2&before=${cutId}`);
+  const page1 = await page1Res.json() as { entries: { id: number }[] };
+  expect(page1.entries.every((e) => e.id < cutId)).toBe(true);
 });

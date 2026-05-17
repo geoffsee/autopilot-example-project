@@ -133,19 +133,19 @@ function ActivityFeed() {
       if (msg.type === "activity_history") {
         setEntries(msg.entries);
         lastSeenIdRef.current = msg.entries[msg.entries.length - 1]?.id ?? null;
-        fetchPage(null);
       } else if (msg.type === "activity") {
         setEntries((prev) => [msg.entry, ...prev].slice(0, 200));
         setTotal((t) => t + 1);
       }
     });
-  }, [subscribe]);
+  }, [subscribe, fetchPage]);
 
   const handleLoadMore = async () => {
     setLoadingMore(true);
     setLoadError(null);
     try {
-      const page = await fetchPage(lastSeenIdRef.current);
+      const cursor = entries[entries.length - 1]?.id ?? null;
+      const page = await fetchPage(cursor);
       if (page) {
         setEntries((prev) => [...prev, ...page]);
         lastSeenIdRef.current = page[page.length - 1]?.id ?? lastSeenIdRef.current;
