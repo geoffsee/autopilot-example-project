@@ -14,8 +14,8 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
-  try { await server.stop(true); } catch {}
-  try { db.close(); } catch {}
+  try { await server.stop(true); } catch (_e) { /* already stopped by shutdown() */ }
+  try { db.close(); } catch (_e) { /* already closed by shutdown() */ }
 });
 
 test("shutdown closes the database", async () => {

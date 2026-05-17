@@ -90,7 +90,10 @@ if (import.meta.main) {
   console.log(`🚀 Server running at ${server.url}`);
 
   process.on("SIGTERM", async () => {
-    await shutdown(server, db);
-    process.exit(0);
+    try {
+      await shutdown(server, db);
+    } finally {
+      process.exit(0);
+    }
   });
 }
