@@ -7,7 +7,8 @@ import { RateLimiter } from "./rate-limiter";
 const db = createCounterDb();
 setupActivityTable(db);
 
-const defaultRps = Math.max(1, parseInt(process.env.RATE_LIMIT_RPS ?? "10", 10));
+const parsed = parseInt(process.env.RATE_LIMIT_RPS ?? "10", 10);
+const defaultRps = Number.isFinite(parsed) && parsed >= 1 ? parsed : 10;
 
 export function createServer(port?: number, rateLimiter?: RateLimiter) {
   const limiter = rateLimiter ?? new RateLimiter(defaultRps);

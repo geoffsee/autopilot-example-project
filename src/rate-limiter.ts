@@ -4,7 +4,7 @@ export class RateLimiter {
   private readonly buckets = new Map<string, Bucket>();
 
   constructor(
-    readonly rps: number,
+    private readonly rps: number,
     private readonly nowFn: () => number = Date.now,
   ) {}
 
@@ -22,8 +22,8 @@ export class RateLimiter {
     bucket.lastRefill = now;
 
     if (bucket.tokens >= this.rps - 0.01) {
-      // Fully replenished — evict to reclaim memory.
       this.buckets.delete(ip);
+      return true; // evict full bucket and allow; next insert starts at rps-1
     }
 
     if (bucket.tokens >= 1) {
