@@ -1,6 +1,6 @@
 import { serve } from "bun";
 import index from "./index.html";
-import { createCounterDb, getCount, handleCounterPost, getNamedCount, handleNamedCounterPost, getCounterHistory } from "./counter";
+import { createCounterDb, getCount, handleCounterPost, getNamedCount, handleNamedCounterPost, getCounterHistory, getLeaderboard } from "./counter";
 import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
 
 const db = createCounterDb();
@@ -74,6 +74,15 @@ export function createServer(port?: number) {
             server.publish("activity", JSON.stringify({ type: "activity", entry }));
           }
           return response;
+        },
+      },
+
+      "/api/leaderboard": {
+        GET(req) {
+          const url = new URL(req.url);
+          const raw = parseInt(url.searchParams.get("limit") ?? "", 10);
+          const limit = Math.min(raw > 0 ? raw : 10, 100);
+          return Response.json(getLeaderboard(db, limit));
         },
       },
 
