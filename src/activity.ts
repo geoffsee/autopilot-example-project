@@ -18,7 +18,14 @@ export function logActivity(db: Database, action: string): ActivityEntry {
   return { id: Number(result.lastInsertRowid), action, timestamp };
 }
 
-export function getRecentActivity(db: Database, limit = 20): ActivityEntry[] {
+export function getRecentActivity(db: Database, limit = 20, action?: string): ActivityEntry[] {
+  if (action !== undefined) {
+    return db
+      .query<ActivityEntry, [string, number]>(
+        "SELECT id, action, timestamp FROM activity WHERE action = ? ORDER BY id DESC LIMIT ?"
+      )
+      .all(action, limit);
+  }
   return db
     .query<ActivityEntry, [number]>(
       "SELECT id, action, timestamp FROM activity ORDER BY id DESC LIMIT ?"

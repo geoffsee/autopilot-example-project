@@ -41,6 +41,38 @@ test("getRecentActivity respects limit", () => {
   db.close();
 });
 
+test("getRecentActivity filters by action", () => {
+  const db = createCounterDb(":memory:");
+  setupActivityTable(db);
+  logActivity(db, "counter.increment");
+  logActivity(db, "counter.reset");
+  logActivity(db, "counter.increment");
+  const entries = getRecentActivity(db, 20, "counter.increment");
+  expect(entries).toHaveLength(2);
+  for (const e of entries) expect(e.action).toBe("counter.increment");
+  db.close();
+});
+
+test("getRecentActivity combines action filter and limit", () => {
+  const db = createCounterDb(":memory:");
+  setupActivityTable(db);
+  for (let i = 0; i < 5; i++) logActivity(db, "counter.increment");
+  logActivity(db, "counter.reset");
+  const entries = getRecentActivity(db, 2, "counter.increment");
+  expect(entries).toHaveLength(2);
+  for (const e of entries) expect(e.action).toBe("counter.increment");
+  db.close();
+});
+
+test("getRecentActivity returns all when action filter matches nothing", () => {
+  const db = createCounterDb(":memory:");
+  setupActivityTable(db);
+  logActivity(db, "counter.increment");
+  const entries = getRecentActivity(db, 20, "counter.reset");
+  expect(entries).toHaveLength(0);
+  db.close();
+});
+
 // HTTP integration tests
 let baseUrl: string;
 let server: ReturnType<typeof serve>;
@@ -67,8 +99,12 @@ beforeAll(() => {
         },
       },
       "/api/activity": {
-        GET(_req) {
-          return Response.json({ entries: getRecentActivity(db) });
+        GET(req) {
+          const url = new URL(req.url);
+          const action = url.searchParams.get("action") ?? undefined;
+          const limitParam = url.searchParams.get("limit");
+          const limit = limitParam !== null ? parseInt(limitParam, 10) : 20;
+          return Response.json({ entries: getRecentActivity(db, limit, action) });
         },
       },
       "/ws": (req, server) => {
@@ -216,4 +252,52 @@ test("POST /api/counter rejects negative increment", async () => {
     body: JSON.stringify({ increment: -1 }),
   });
   expect(res.status).toBe(400);
+});
+
+test("GET /api/activity?action= filters entries by action", async () => {
+  // Seed known entries
+  await fetch(`${baseUrl}/api/counter`, { method: "POST" });
+
+  const res = await fetch(`${baseUrl}/api/activity?action=counter.increment`);
+  expect(res.status).toBe(200);
+  const body = await res.json() as { entries: { action: string }[] };
+  expect(body.entries.length).toBeGreaterThanOrEqual(1);
+  for (const e of body.entries) expect(e.action).toBe("counter.increment");
+});
+
+test("GET /api/activity?action= returns empty for unknown action", async () => {
+  const res = await fetch(`${baseUrl}/api/activity?action=counter.no-such-action`);
+  expect(res.status).toBe(200);
+  const body = await res.json() as { entries: unknown[] };
+  expect(body.entries).toHaveLength(0);
+});
+
+test("GET /api/activity?limit= caps results server-side", async () => {
+  // Ensure there are at least 3 entries
+  await fetch(`${baseUrl}/api/counter`, { method: "POST" });
+  await fetch(`${baseUrl}/api/counter`, { method: "POST" });
+  await fetch(`${baseUrl}/api/counter`, { method: "POST" });
+
+  const res = await fetch(`${baseUrl}/api/activity?limit=2`);
+  expect(res.status).toBe(200);
+  const body = await res.json() as { entries: unknown[] };
+  expect(body.entries).toHaveLength(2);
+});
+
+test("GET /api/activity?action=&limit= combines both params", async () => {
+  await fetch(`${baseUrl}/api/counter`, { method: "POST" });
+  await fetch(`${baseUrl}/api/counter`, { method: "POST" });
+
+  const res = await fetch(`${baseUrl}/api/activity?action=counter.increment&limit=1`);
+  expect(res.status).toBe(200);
+  const body = await res.json() as { entries: { action: string }[] };
+  expect(body.entries).toHaveLength(1);
+  expect(body.entries[0]!.action).toBe("counter.increment");
+});
+
+test("GET /api/activity ignores unrecognised query params", async () => {
+  const res = await fetch(`${baseUrl}/api/activity?foo=bar&baz=qux`);
+  expect(res.status).toBe(200);
+  const body = await res.json() as { entries: unknown[] };
+  expect(Array.isArray(body.entries)).toBe(true);
 });
