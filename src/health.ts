@@ -1,6 +1,7 @@
 import { Database } from "bun:sqlite";
+import pkg from "../package.json" with { type: "json" };
 
-const VERSION = "0.1.0";
+const VERSION: string = pkg.version;
 
 export function handleHealthGet(db: Database): Response {
   let dbStatus: "ok" | "error" = "ok";
@@ -12,7 +13,7 @@ export function handleHealthGet(db: Database): Response {
 
   return Response.json(
     {
-      status: dbStatus === "ok" ? "ok" : "error",
+      status: dbStatus,
       uptime: process.uptime(),
       db: dbStatus,
       version: VERSION,

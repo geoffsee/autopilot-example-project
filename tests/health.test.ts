@@ -1,13 +1,11 @@
 import { test, expect, beforeEach } from "bun:test";
 import { Database } from "bun:sqlite";
-import { setupCounter } from "../src/counter";
 import { handleHealthGet } from "../src/health";
 
 let db: Database;
 
 beforeEach(() => {
   db = new Database(":memory:");
-  setupCounter(db);
 });
 
 test("GET /api/health returns 200 with healthy payload when db is reachable", async () => {
