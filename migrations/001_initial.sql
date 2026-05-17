@@ -4,9 +4,3 @@ CREATE TABLE IF NOT EXISTS counter (
 );
 
 INSERT OR IGNORE INTO counter (id, value) VALUES (1, 0);
-
-CREATE TABLE IF NOT EXISTS activity (
-  id        INTEGER PRIMARY KEY AUTOINCREMENT,
-  action    TEXT NOT NULL,
-  timestamp TEXT NOT NULL
-);

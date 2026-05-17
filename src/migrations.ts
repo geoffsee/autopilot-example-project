@@ -28,4 +28,5 @@ export async function runMigrations(db: Database, migrationsDir?: string): Promi
     const sql = await Bun.file(join(dir, file)).text();
     applyMigration(version, sql);
   }
+  checkApplied.finalize();
 }
