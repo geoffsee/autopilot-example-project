@@ -108,6 +108,13 @@ export async function handleCounterPost(
   return { response: Response.json({ count: row.value }), count: row.value };
 }
 
+export function resetNamedCounter(db: Database, name: string): number | null {
+  const existing = db.query("SELECT id FROM counter WHERE name = ?").get(name) as { id: number } | null;
+  if (!existing) return null;
+  db.run("UPDATE counter SET value = 0 WHERE name = ?", [name]);
+  return 0;
+}
+
 export async function handleNamedCounterPost(
   req: Request,
   db: Database,
