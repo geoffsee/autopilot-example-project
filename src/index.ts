@@ -7,6 +7,7 @@ import { handleHealthGet } from "./health";
 const db = createCounterDb();
 setupActivityTable(db);
 const SERVER_START = Date.now();
+const DB_PING = db.prepare("SELECT 1");
 
 export function createServer(port?: number) {
   return serve({
@@ -16,7 +17,7 @@ export function createServer(port?: number) {
 
       "/api/health": {
         GET(_req) {
-          return handleHealthGet(db, SERVER_START);
+          return handleHealthGet(DB_PING, SERVER_START);
         },
       },
 
