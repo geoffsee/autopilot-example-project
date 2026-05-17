@@ -1,12 +1,22 @@
 import { serve } from "bun";
+import type { Server } from "bun";
+import { Database } from "bun:sqlite";
 import index from "./index.html";
 import { createCounterDb, getCount, handleCounterPost } from "./counter";
 import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
 
-const db = createCounterDb();
-setupActivityTable(db);
+export async function shutdown(server: Server, db: Database): Promise<void> {
+  await server.stop(true);
+  db.close();
+}
 
-export function createServer(port?: number) {
+export function createServer(port?: number, providedDb?: Database) {
+  const db = providedDb ?? (() => {
+    const d = createCounterDb();
+    setupActivityTable(d);
+    return d;
+  })();
+
   return serve({
     port,
     routes: {
@@ -74,6 +84,13 @@ export function createServer(port?: number) {
 }
 
 if (import.meta.main) {
-  const server = createServer();
+  const db = createCounterDb();
+  setupActivityTable(db);
+  const server = createServer(undefined, db);
   console.log(`🚀 Server running at ${server.url}`);
+
+  process.on("SIGTERM", async () => {
+    await shutdown(server, db);
+    process.exit(0);
+  });
 }
