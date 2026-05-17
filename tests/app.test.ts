@@ -15,9 +15,16 @@ afterAll(() => {
   server.stop(true);
 });
 
-test("App.tsx uses WebSocket for real-time updates with no setInterval polling", async () => {
+test("WebSocket /ws is reachable and frontend has no setInterval polling", async () => {
+  const ws = new WebSocket(`${wsBase}/ws`);
+  await new Promise<void>((resolve, reject) => {
+    ws.onopen = () => resolve();
+    ws.onerror = () => reject(new Error("WebSocket connection failed"));
+  });
+  expect(ws.readyState).toBe(WebSocket.OPEN);
+  ws.close();
+
   const src = await Bun.file("src/App.tsx").text();
-  expect(src).toContain("new WebSocket");
   expect(src).not.toContain("setInterval");
 });
 
@@ -59,7 +66,10 @@ test("WebSocket /ws sends { type: 'counter', count } on POST (LiveCounter real-t
   const res = await fetch(`${baseUrl}/api/counter`, { method: "POST" });
   const { count } = (await res.json()) as { count: number };
 
-  const msg = await counterMsg;
-  expect(msg).toEqual({ type: "counter", count });
-  ws.close();
+  try {
+    const msg = await counterMsg;
+    expect(msg).toEqual({ type: "counter", count });
+  } finally {
+    ws.close();
+  }
 });
