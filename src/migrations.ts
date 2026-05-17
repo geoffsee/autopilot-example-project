@@ -8,7 +8,7 @@ export async function runMigrations(db: Database, migrationsDir?: string): Promi
   let isDir = false;
   try { isDir = (await stat(dir)).isDirectory(); } catch { /* not found */ }
   if (!isDir) {
-    throw new Error(`Migrations directory not found: ${dir}`);
+    throw new Error(`Migrations directory not found or is not a directory: ${dir}`);
   }
 
   db.exec(`CREATE TABLE IF NOT EXISTS _migrations (
