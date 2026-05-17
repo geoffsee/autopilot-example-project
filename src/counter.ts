@@ -45,7 +45,6 @@ export function getCounterValue(db: Database): number {
 }
 
 export function getNamedCount(db: Database, name: string): number {
-  db.run("INSERT OR IGNORE INTO counter (name, value) VALUES (?, 0)", [name]);
   const row = db.query("SELECT value FROM counter WHERE name = ?").get(name) as {
     value: number;
   } | null;
@@ -53,11 +52,13 @@ export function getNamedCount(db: Database, name: string): number {
 }
 
 export function incrementNamedCounter(db: Database, name: string, amount: number): number {
-  db.run("INSERT OR IGNORE INTO counter (name, value) VALUES (?, 0)", [name]);
-  const row = db
-    .query("UPDATE counter SET value = value + ? WHERE name = ? RETURNING value")
-    .get(amount, name) as { value: number } | null;
-  return row?.value ?? 0;
+  return db.transaction(() => {
+    db.run("INSERT OR IGNORE INTO counter (name, value) VALUES (?, 0)", [name]);
+    const row = db
+      .query("UPDATE counter SET value = value + ? WHERE name = ? RETURNING value")
+      .get(amount, name) as { value: number } | null;
+    return row?.value ?? 0;
+  })();
 }
 
 async function parseIncrementBody(req: Request): Promise<{ increment: number } | { error: string; status: number }> {
