@@ -1,8 +1,13 @@
 import { Database } from "bun:sqlite";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 
 export async function runMigrations(db: Database, migrationsDir?: string): Promise<void> {
   const dir = migrationsDir ?? join(import.meta.dir, "..", "migrations");
+
+  if (!existsSync(dir)) {
+    throw new Error(`Migrations directory not found: ${dir}`);
+  }
 
   db.exec(`CREATE TABLE IF NOT EXISTS _migrations (
     version    TEXT PRIMARY KEY,
