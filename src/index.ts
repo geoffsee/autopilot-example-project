@@ -12,6 +12,10 @@ import {
 } from "./counter";
 import { setupActivityTable, logActivity, getRecentActivity, clearActivity } from "./activity";
 
+function isValidCounterName(name: string): boolean {
+  return !!name && name.length <= 100 && /^[\w.-]+$/.test(name);
+}
+
 export function createServer(port?: number, database?: Database) {
   const db = database ?? createCounterDb();
   setupActivityTable(db);
@@ -64,14 +68,14 @@ export function createServer(port?: number, database?: Database) {
       "/api/counter/:name": {
         GET(req) {
           const { name } = req.params;
-          if (!name || name.length > 100 || !/^[\w.-]+$/.test(name)) {
+          if (!isValidCounterName(name)) {
             return Response.json({ error: "Invalid counter name" }, { status: 400 });
           }
           return Response.json({ name, count: getNamedCount(db, name) });
         },
         async POST(req, server) {
           const { name } = req.params;
-          if (!name || name.length > 100 || !/^[\w.-]+$/.test(name)) {
+          if (!isValidCounterName(name)) {
             return Response.json({ error: "Invalid counter name" }, { status: 400 });
           }
           const { response, count } = await handleNamedCounterPost(req, db, name);
