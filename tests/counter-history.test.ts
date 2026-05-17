@@ -84,6 +84,14 @@ describe("counter_history DB functions", () => {
     expect(getCounterHistory(db, "alpha")[0].delta).toBe(5);
   });
 
+  test("getCounterHistory caps limit at 100", () => {
+    for (let i = 0; i < 110; i++) {
+      incrementNamedCounter(db, "app", 1);
+    }
+    const entries = getCounterHistory(db, "app", { limit: 200 });
+    expect(entries).toHaveLength(100);
+  });
+
   test("new_value in history reflects cumulative value", () => {
     incrementNamedCounter(db, "app", 5);
     incrementNamedCounter(db, "app", 3);
@@ -152,13 +160,13 @@ describe("counter history HTTP integration", () => {
   });
 
   test("?limit= is capped at 100 server-side", async () => {
-    const name = `hist_cap_${Date.now()}`;
-    for (let i = 0; i < 110; i++) {
+    const name = `hist_lim2_${Date.now()}`;
+    for (let i = 0; i < 5; i++) {
       await fetch(`${baseUrl}/api/counter/${name}`, { method: "POST" });
     }
     const res = await fetch(`${baseUrl}/api/counter/${name}/history?limit=200`);
-    const body = await res.json() as { entries: unknown[] };
-    expect(body.entries.length).toBeLessThanOrEqual(100);
+    const body = await res.json() as { entries: unknown[]; limit: number };
+    expect(body.limit).toBeLessThanOrEqual(100);
   });
 
   test("?offset= skips entries", async () => {

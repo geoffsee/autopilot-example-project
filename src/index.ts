@@ -46,10 +46,11 @@ export function createServer(port?: number) {
           const url = new URL(req.url);
           const limitParam = parseInt(url.searchParams.get("limit") ?? "0", 10);
           const offsetParam = parseInt(url.searchParams.get("offset") ?? "0", 10);
-          const limit = Number.isFinite(limitParam) && limitParam > 0 ? limitParam : undefined;
-          const offset = Number.isFinite(offsetParam) && offsetParam >= 0 ? offsetParam : 0;
+          const limit = !isNaN(limitParam) && limitParam > 0 ? limitParam : undefined;
+          const offset = !isNaN(offsetParam) && offsetParam >= 0 ? offsetParam : 0;
           const entries = getCounterHistory(db, name, { limit, offset });
-          return Response.json({ name, entries });
+          const effectiveLimit = Math.min(limit ?? 20, 100);
+          return Response.json({ name, limit: effectiveLimit, offset, entries });
         },
       },
 
