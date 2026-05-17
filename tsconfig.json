@@ -21,8 +21,6 @@
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
 
-    // TODO: noPropertyAccessFromIndexSignature is deprecated in TS 6.0; migrate or remove before upgrading
-    "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
@@ -30,8 +28,7 @@
 
     // Some stricter flags (disabled by default)
     "noUnusedLocals": false,
-    "noUnusedParameters": false,
-    "noPropertyAccessFromIndexSignature": false
+    "noUnusedParameters": false
   },
 
   "exclude": ["dist", "node_modules"]

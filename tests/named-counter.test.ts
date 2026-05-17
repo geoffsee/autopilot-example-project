@@ -221,3 +221,22 @@ test("POST /api/counter/:name broadcasts counter update with name over WebSocket
 
   await new Promise<void>((resolve) => { ws.onclose = () => resolve(); ws.close(); });
 });
+
+test("DELETE /api/counter/:name resets the counter to 0", async () => {
+  await fetch(`${baseUrl}/api/counter/deltest`, { method: "POST" });
+  const res = await fetch(`${baseUrl}/api/counter/deltest`, { method: "DELETE" });
+  expect(res.status).toBe(200);
+  const body = (await res.json()) as { name: string; count: number };
+  expect(body.name).toBe("deltest");
+  expect(body.count).toBe(0);
+  const getRes = await fetch(`${baseUrl}/api/counter/deltest`);
+  const getBody = (await getRes.json()) as { count: number };
+  expect(getBody.count).toBe(0);
+});
+
+test("DELETE /api/counter/:name returns 400 for invalid counter name", async () => {
+  const res = await fetch(`${baseUrl}/api/counter/invalid name!`, { method: "DELETE" });
+  expect(res.status).toBe(400);
+  const body = (await res.json()) as { error: string };
+  expect(typeof body.error).toBe("string");
+});
