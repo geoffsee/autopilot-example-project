@@ -1,6 +1,6 @@
 import { serve } from "bun";
 import index from "./index.html";
-import { createCounterDb, getCount, handleCounterPost, getNamedCount, handleNamedCounterPost } from "./counter";
+import { createCounterDb, getCount, handleCounterPost, getNamedCount, handleNamedCounterPost, getCounterHistory } from "./counter";
 import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
 
 const db = createCounterDb();
@@ -37,6 +37,19 @@ export function createServer(port?: number) {
             server.publish("activity", JSON.stringify({ type: "activity", entry }));
           }
           return response;
+        },
+      },
+
+      "/api/counter/:name/history": {
+        GET(req) {
+          const name = req.params.name;
+          const url = new URL(req.url);
+          const limitParam = parseInt(url.searchParams.get("limit") ?? "20", 10);
+          const offsetParam = parseInt(url.searchParams.get("offset") ?? "0", 10);
+          const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 100) : 20;
+          const offset = Number.isFinite(offsetParam) && offsetParam >= 0 ? offsetParam : 0;
+          const entries = getCounterHistory(db, name, { limit, offset });
+          return Response.json({ name, entries });
         },
       },
 
