@@ -109,10 +109,10 @@ export async function handleCounterPost(
 }
 
 export function resetNamedCounter(db: Database, name: string): number | null {
-  const existing = db.query("SELECT id FROM counter WHERE name = ?").get(name) as { id: number } | null;
-  if (!existing) return null;
-  db.run("UPDATE counter SET value = 0 WHERE name = ?", [name]);
-  return 0;
+  const result = db
+    .query("UPDATE counter SET value = 0 WHERE name = ? RETURNING id")
+    .get(name) as { id: number } | null;
+  return result === null ? null : 0;
 }
 
 export async function handleNamedCounterPost(
