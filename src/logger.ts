@@ -1,7 +1,7 @@
 type Level = "info" | "error";
 
 function emit(level: Level, msg: string, extra?: Record<string, unknown>): void {
-  const line = JSON.stringify({ level, msg, timestamp: new Date().toISOString(), ...extra }) + "\n";
+  const line = JSON.stringify({ ...extra, level, msg, timestamp: new Date().toISOString() }) + "\n";
   if (level === "error") {
     process.stderr.write(line);
   } else {

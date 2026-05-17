@@ -46,6 +46,7 @@ test("log.info includes extra fields in JSON output", () => {
   log.info("server started", { port: 3000, url: "http://localhost:3000" });
   spy.mockRestore();
 
+  expect(lines.length).toBe(1);
   const parsed = JSON.parse(lines[0]) as { level: string; msg: string; timestamp: string; port: number; url: string };
   expect(parsed.port).toBe(3000);
   expect(parsed.url).toBe("http://localhost:3000");
