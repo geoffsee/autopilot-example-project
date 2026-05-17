@@ -71,18 +71,20 @@ export function getNamedCount(db: Database, name: string): number {
 }
 
 export function incrementNamedCounter(db: Database, name: string, amount: number): number {
-  db.run("INSERT OR IGNORE INTO counter (name, value) VALUES (?, 0)", [name]);
-  const row = db
-    .query("UPDATE counter SET value = value + ? WHERE name = ? RETURNING value")
-    .get(amount, name) as { value: number } | null;
-  const newValue = row?.value ?? 0;
-  if (amount !== 0) {
-    db.run(
-      "INSERT INTO counter_history (name, delta, new_value, timestamp) VALUES (?, ?, ?, ?)",
-      [name, amount, newValue, new Date().toISOString()]
-    );
-  }
-  return newValue;
+  return db.transaction(() => {
+    db.run("INSERT OR IGNORE INTO counter (name, value) VALUES (?, 0)", [name]);
+    const row = db
+      .query("UPDATE counter SET value = value + ? WHERE name = ? RETURNING value")
+      .get(amount, name) as { value: number } | null;
+    const newValue = row?.value ?? 0;
+    if (amount !== 0) {
+      db.run(
+        "INSERT INTO counter_history (name, delta, new_value, timestamp) VALUES (?, ?, ?, ?)",
+        [name, amount, newValue, new Date().toISOString()]
+      );
+    }
+    return newValue;
+  })();
 }
 
 export function getCounterHistory(
@@ -90,7 +92,7 @@ export function getCounterHistory(
   name: string,
   options: { limit?: number; offset?: number } = {}
 ): HistoryEntry[] {
-  const limit = Math.min(options.limit ?? 20, 100);
+  const limit = Math.min((options.limit && options.limit > 0) ? options.limit : 20, 100);
   const offset = options.offset ?? 0;
   return db
     .query<HistoryEntry, [string, number, number]>(

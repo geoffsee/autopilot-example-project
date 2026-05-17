@@ -44,9 +44,9 @@ export function createServer(port?: number) {
         GET(req) {
           const name = req.params.name;
           const url = new URL(req.url);
-          const limitParam = parseInt(url.searchParams.get("limit") ?? "20", 10);
+          const limitParam = parseInt(url.searchParams.get("limit") ?? "0", 10);
           const offsetParam = parseInt(url.searchParams.get("offset") ?? "0", 10);
-          const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 100) : 20;
+          const limit = Number.isFinite(limitParam) && limitParam > 0 ? limitParam : undefined;
           const offset = Number.isFinite(offsetParam) && offsetParam >= 0 ? offsetParam : 0;
           const entries = getCounterHistory(db, name, { limit, offset });
           return Response.json({ name, entries });
