@@ -69,10 +69,9 @@ export function incrementNamedCounter(db: Database, name: string, amount: number
 }
 
 export function resetNamedCounter(db: Database, name: string): number {
-  db.run(
-    "INSERT INTO named_counters (name, value) VALUES (?, 0) ON CONFLICT(name) DO UPDATE SET value = 0",
-    [name]
-  );
+  db.query(
+    "INSERT INTO named_counters (name, value) VALUES (?, 0) ON CONFLICT(name) DO UPDATE SET value = 0"
+  ).run(name);
   return 0;
 }
 

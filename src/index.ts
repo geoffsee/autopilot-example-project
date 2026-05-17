@@ -5,7 +5,6 @@ import {
   createCounterDb,
   getCount,
   handleCounterPost,
-  resetCounter,
   setupNamedCounters,
   getNamedCount,
   handleNamedCounterPost,
@@ -92,6 +91,8 @@ export function createServer(port?: number, database?: Database) {
           }
           resetNamedCounter(db, name);
           server.publish("counter", JSON.stringify({ type: "counter", name, count: 0 }));
+          const entry = logActivity(db, `counter.reset.${name}`);
+          server.publish("activity", JSON.stringify({ type: "activity", entry }));
           return Response.json({ name, count: 0 });
         },
       },

@@ -234,6 +234,10 @@ test("DELETE /api/counter/:name resets the counter to 0", async () => {
   const getRes = await fetch(`${baseUrl}/api/counter/deltest`);
   const getBody = (await getRes.json()) as { count: number };
   expect(getBody.count).toBe(0);
+
+  const activityRes = await fetch(`${baseUrl}/api/activity`);
+  const activityBody = (await activityRes.json()) as { entries: { action: string }[] };
+  expect(activityBody.entries.some((e) => e.action === "counter.reset.deltest")).toBe(true);
 });
 
 test("DELETE /api/counter/:name returns 400 for invalid counter name", async () => {
