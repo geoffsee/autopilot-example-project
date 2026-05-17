@@ -63,7 +63,6 @@ export function getCounterValue(db: Database): number {
 }
 
 export function getNamedCount(db: Database, name: string): number {
-  db.run("INSERT OR IGNORE INTO counter (name, value) VALUES (?, 0)", [name]);
   const row = db.query("SELECT value FROM counter WHERE name = ?").get(name) as {
     value: number;
   } | null;

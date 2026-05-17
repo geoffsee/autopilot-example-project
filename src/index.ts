@@ -56,14 +56,22 @@ export function createServer(port?: number) {
       "/api/counter/:name": {
         GET(req) {
           const name = req.params.name;
+          if (!/^[a-zA-Z0-9_-]{1,100}$/.test(name)) {
+            return Response.json({ error: "Invalid counter name" }, { status: 400 });
+          }
           const value = getNamedCount(db, name);
           return Response.json({ name, value });
         },
         async POST(req, server) {
           const name = req.params.name;
+          if (!/^[a-zA-Z0-9_-]{1,100}$/.test(name)) {
+            return Response.json({ error: "Invalid counter name" }, { status: 400 });
+          }
           const { response, value } = await handleNamedCounterPost(req, db, name);
           if (response.ok && typeof value === "number") {
             server.publish("counter", JSON.stringify({ type: "counter", name, value }));
+            const entry = logActivity(db, "counter.increment");
+            server.publish("activity", JSON.stringify({ type: "activity", entry }));
           }
           return response;
         },
