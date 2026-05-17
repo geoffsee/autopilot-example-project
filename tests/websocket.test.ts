@@ -5,7 +5,7 @@ import { setupCounter } from "../src/counter";
 import { makeCounterRoutes } from "../src/counter-routes";
 
 const db = new Database(":memory:");
-setupCounter(db);
+await setupCounter(db);
 let testServer: ReturnType<typeof serve>;
 
 beforeAll(() => {

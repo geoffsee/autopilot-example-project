@@ -1,8 +1,8 @@
 import { Database } from "bun:sqlite";
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { join } from "node:path";
 
-export function runMigrations(db: Database, migrationsDir?: string): void {
+export async function runMigrations(db: Database, migrationsDir?: string): Promise<void> {
   const dir = migrationsDir ?? join(import.meta.dir, "..", "migrations");
 
   db.exec(`CREATE TABLE IF NOT EXISTS _migrations (
@@ -25,7 +25,7 @@ export function runMigrations(db: Database, migrationsDir?: string): void {
     const version = file.replace(/\.sql$/, "");
     if (checkApplied.get(version)) continue;
 
-    const sql = readFileSync(join(dir, file), "utf8");
+    const sql = await Bun.file(join(dir, file)).text();
     applyMigration(version, sql);
   }
 }

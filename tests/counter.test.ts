@@ -15,9 +15,9 @@ function makePostRequest(body?: unknown, contentType = "application/json"): Requ
   });
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   db = new Database(":memory:");
-  setupCounter(db);
+  await setupCounter(db);
 });
 
 afterEach(() => {

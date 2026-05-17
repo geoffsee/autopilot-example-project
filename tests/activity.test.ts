@@ -4,15 +4,15 @@ import { createCounterDb, handleCounterPost } from "../src/counter";
 import { setupActivityTable, logActivity, getRecentActivity } from "../src/activity";
 
 // Unit tests for activity DB functions
-test("getRecentActivity returns empty array on fresh DB", () => {
-  const db = createCounterDb(":memory:");
+test("getRecentActivity returns empty array on fresh DB", async () => {
+  const db = await createCounterDb(":memory:");
   setupActivityTable(db);
   expect(getRecentActivity(db)).toEqual([]);
   db.close();
 });
 
-test("logActivity inserts and returns entry", () => {
-  const db = createCounterDb(":memory:");
+test("logActivity inserts and returns entry", async () => {
+  const db = await createCounterDb(":memory:");
   setupActivityTable(db);
   const entry = logActivity(db, "test.action");
   expect(entry.action).toBe("test.action");
@@ -20,8 +20,8 @@ test("logActivity inserts and returns entry", () => {
   db.close();
 });
 
-test("getRecentActivity returns newest-first", () => {
-  const db = createCounterDb(":memory:");
+test("getRecentActivity returns newest-first", async () => {
+  const db = await createCounterDb(":memory:");
   setupActivityTable(db);
   logActivity(db, "action.first");
   logActivity(db, "action.second");
@@ -33,8 +33,8 @@ test("getRecentActivity returns newest-first", () => {
   db.close();
 });
 
-test("getRecentActivity respects limit", () => {
-  const db = createCounterDb(":memory:");
+test("getRecentActivity respects limit", async () => {
+  const db = await createCounterDb(":memory:");
   setupActivityTable(db);
   for (let i = 0; i < 25; i++) logActivity(db, `action.${i}`);
   expect(getRecentActivity(db, 10)).toHaveLength(10);
@@ -45,8 +45,8 @@ test("getRecentActivity respects limit", () => {
 let baseUrl: string;
 let server: ReturnType<typeof serve>;
 
-beforeAll(() => {
-  const db = createCounterDb(":memory:");
+beforeAll(async () => {
+  const db = await createCounterDb(":memory:");
   setupActivityTable(db);
 
   server = serve({

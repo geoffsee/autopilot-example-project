@@ -1,9 +1,9 @@
 import { Database } from "bun:sqlite";
 import { runMigrations } from "./migrations";
 
-export function createCounterDb(path = "counter.db"): Database {
+export async function createCounterDb(path = "counter.db"): Promise<Database> {
   const db = new Database(path);
-  setupCounter(db);
+  await setupCounter(db);
   return db;
 }
 
@@ -18,8 +18,8 @@ export function incrementCounter(db: Database): number {
   return row.value;
 }
 
-export function setupCounter(db: Database): void {
-  runMigrations(db);
+export async function setupCounter(db: Database): Promise<void> {
+  await runMigrations(db);
   // Migrate existing databases that still use the old column name.
   const cols = db.query("PRAGMA table_info(counter)").all() as { name: string }[];
   if (cols.some(c => c.name === "count")) {

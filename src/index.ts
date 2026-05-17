@@ -3,7 +3,7 @@ import index from "./index.html";
 import { createCounterDb, getCount, handleCounterPost } from "./counter";
 import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
 
-const db = createCounterDb();
+const db = await createCounterDb();
 setupActivityTable(db);
 
 export function createServer(port?: number) {
