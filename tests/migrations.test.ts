@@ -73,5 +73,5 @@ test("applies multiple migrations in lexicographic order", async () => {
 });
 
 test("throws when migrations directory does not exist", async () => {
-  expect(runMigrations(db, "/nonexistent/path")).rejects.toThrow("Migrations directory not found");
+  await expect(runMigrations(db, "/nonexistent/path")).rejects.toThrow("Migrations directory not found");
 });
