@@ -116,8 +116,8 @@ function ActivityFeed() {
   useEffect(() => {
     return subscribe((msg) => {
       if (msg.type === "activity_history") {
-        setEntries((prev) => prev.length > 0 ? prev : msg.entries);
-        setTotal((prevTotal) => prevTotal > 0 ? prevTotal : msg.total);
+        setEntries(msg.entries);
+        setTotal(msg.total);
       } else if (msg.type === "activity") {
         setEntries((prev) => [msg.entry, ...prev].slice(0, 200));
         setTotal((t) => t + 1);
@@ -125,7 +125,7 @@ function ActivityFeed() {
     });
   }, [subscribe]);
 
-  const handleLoadMore = async () => {
+  const handleLoadMore = useCallback(async () => {
     setLoadingMore(true);
     setLoadError(null);
     try {
@@ -138,7 +138,7 @@ function ActivityFeed() {
     } finally {
       setLoadingMore(false);
     }
-  };
+  }, [entries, fetchPage]);
 
   const hasMore = entries.length < total;
 
