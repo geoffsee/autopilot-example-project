@@ -1,12 +1,14 @@
-import { Database } from "bun:sqlite";
+import { Database, type Statement } from "bun:sqlite";
 import pkg from "../package.json" with { type: "json" };
 
 const VERSION: string = pkg.version;
+const pingStmts = new WeakMap<Database, Statement>();
 
 export function handleHealthGet(db: Database): Response {
   let dbStatus: "ok" | "error" = "ok";
   try {
-    db.prepare("SELECT 1").get();
+    if (!pingStmts.has(db)) pingStmts.set(db, db.prepare("SELECT 1"));
+    pingStmts.get(db)!.get();
   } catch {
     dbStatus = "error";
   }
