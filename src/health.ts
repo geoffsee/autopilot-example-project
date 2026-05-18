@@ -7,9 +7,9 @@ const pingStmts = new WeakMap<Database, Statement>();
 export function handleHealthGet(db: Database): Response {
   let dbStatus: "ok" | "error" = "ok";
   try {
-    const stmt = pingStmts.get(db) ?? db.prepare("SELECT 1");
-    if (!pingStmts.has(db)) pingStmts.set(db, stmt);
-    stmt.get();
+    let stmt = pingStmts.get(db);
+    if (!stmt) { stmt = db.prepare("SELECT 1"); pingStmts.set(db, stmt); }
+    stmt.run();
   } catch {
     dbStatus = "error";
   }

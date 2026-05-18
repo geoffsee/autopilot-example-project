@@ -14,6 +14,12 @@ export function createServer(port?: number) {
     routes: {
       "/*": index,
 
+      "/api/health": {
+        GET(_req) {
+          return handleHealthGet(db);
+        },
+      },
+
       "/api/hello": {
         async GET(_req) {
           return Response.json({ message: "Hello, world!", method: "GET" });
@@ -39,12 +45,6 @@ export function createServer(port?: number) {
             server.publish("activity", JSON.stringify({ type: "activity", entry }));
           }
           return response;
-        },
-      },
-
-      "/api/health": {
-        GET(_req) {
-          return handleHealthGet(db);
         },
       },
 
