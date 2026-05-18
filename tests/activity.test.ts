@@ -1,6 +1,6 @@
 import { expect, test, beforeAll, afterAll } from "bun:test";
 import { serve } from "bun";
-import { createCounterDb, handleCounterPost } from "../src/counter";
+import { createCounterDb, setupCounter, handleCounterPost } from "../src/counter";
 import { setupActivityTable, logActivity, getRecentActivity } from "../src/activity";
 
 // Unit tests for activity DB functions
@@ -47,6 +47,7 @@ let server: ReturnType<typeof serve>;
 
 beforeAll(() => {
   const db = createCounterDb(":memory:");
+  setupCounter(db);
   setupActivityTable(db);
 
   server = serve({

@@ -4,6 +4,7 @@ import index from "./index.html";
 import { createCounterDb, getCount, handleCounterPost } from "./counter";
 import { logActivity, getRecentActivity } from "./activity";
 import { runMigrations } from "./migrate";
+import { log } from "./logger";
 
 const db = createCounterDb();
 await runMigrations(db, join(import.meta.dir, "../migrations"));
@@ -77,5 +78,5 @@ export function createServer(port?: number) {
 
 if (import.meta.main) {
   const server = createServer();
-  console.log(`🚀 Server running at ${server.url}`);
+  log.info("server started", { url: server.url.href });
 }
