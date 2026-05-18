@@ -1,4 +1,4 @@
-import { test, expect, beforeEach } from "bun:test";
+import { test, expect, beforeEach, afterEach } from "bun:test";
 import { Database } from "bun:sqlite";
 import { handleHealthGet } from "../src/health";
 
@@ -8,11 +8,14 @@ beforeEach(() => {
   db = new Database(":memory:");
 });
 
+afterEach(() => {
+  try { db.close(); } catch {}
+});
+
 test("GET /api/health returns 200 with healthy payload when db is reachable", async () => {
   const res = handleHealthGet(db);
   expect(res.status).toBe(200);
-  const body = await res.json() as { status: string; uptime: number; db: string; version: string };
-  expect(body.status).toBe("ok");
+  const body = await res.json() as { uptime: number; db: string; version: string };
   expect(typeof body.uptime).toBe("number");
   expect(body.uptime).toBeGreaterThanOrEqual(0);
   expect(body.db).toBe("ok");
@@ -24,8 +27,7 @@ test("GET /api/health returns 503 with db error when db is closed", async () => 
   db.close();
   const res = handleHealthGet(db);
   expect(res.status).toBe(503);
-  const body = await res.json() as { status: string; uptime: number; db: string; version: string };
-  expect(body.status).toBe("error");
+  const body = await res.json() as { uptime: number; db: string; version: string };
   expect(body.db).toBe("error");
   expect(typeof body.uptime).toBe("number");
   expect(typeof body.version).toBe("string");

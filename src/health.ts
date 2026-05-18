@@ -6,14 +6,13 @@ const VERSION: string = pkg.version;
 export function handleHealthGet(db: Database): Response {
   let dbStatus: "ok" | "error" = "ok";
   try {
-    db.query("SELECT 1").get();
+    db.prepare("SELECT 1").get();
   } catch {
     dbStatus = "error";
   }
 
   return Response.json(
     {
-      status: dbStatus,
       uptime: process.uptime(),
       db: dbStatus,
       version: VERSION,
