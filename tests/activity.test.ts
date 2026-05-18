@@ -1,7 +1,9 @@
 import { expect, test, beforeAll, afterAll } from "bun:test";
 import { serve } from "bun";
-import { createCounterDb, setupCounter, handleCounterPost } from "../src/counter";
+import { join } from "node:path";
+import { createCounterDb, handleCounterPost } from "../src/counter";
 import { setupActivityTable, logActivity, getRecentActivity } from "../src/activity";
+import { runMigrations } from "../src/migrate";
 
 // Unit tests for activity DB functions
 test("getRecentActivity returns empty array on fresh DB", () => {
@@ -45,10 +47,9 @@ test("getRecentActivity respects limit", () => {
 let baseUrl: string;
 let server: ReturnType<typeof serve>;
 
-beforeAll(() => {
+beforeAll(async () => {
   const db = createCounterDb(":memory:");
-  setupCounter(db);
-  setupActivityTable(db);
+  await runMigrations(db, join(import.meta.dir, "../migrations"));
 
   server = serve({
     port: 0,

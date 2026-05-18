@@ -48,7 +48,7 @@ test("runMigrations second run is a no-op", async () => {
 
 test("runMigrations throws on non-existent directory", async () => {
   const db = new Database(":memory:");
-  await expect(runMigrations(db, "/tmp/does-not-exist-migrations-dir")).rejects.toThrow();
+  await expect(runMigrations(db, join(tmpdir(), `migrate-nonexistent-${Date.now()}`))).rejects.toThrow();
   db.close();
 });
 
