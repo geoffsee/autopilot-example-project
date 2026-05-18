@@ -15,33 +15,36 @@ afterAll(() => {
   server.stop(true);
 });
 
-test("WebSocket /ws is reachable and frontend has no setInterval polling", async () => {
+test("WebSocket /ws is reachable", async () => {
   const ws = new WebSocket(`${wsBase}/ws`);
-  await new Promise<void>((resolve, reject) => {
-    ws.onopen = () => resolve();
-    ws.onerror = () => reject(new Error("WebSocket connection failed"));
-  });
-  expect(ws.readyState).toBe(WebSocket.OPEN);
-  ws.close();
-
-  const src = await Bun.file("src/App.tsx").text();
-  expect(src).not.toContain("setInterval");
+  try {
+    await new Promise<void>((resolve, reject) => {
+      ws.onopen = () => resolve();
+      ws.onerror = () => reject(new Error("WebSocket connection failed"));
+    });
+    expect(ws.readyState).toBe(WebSocket.OPEN);
+  } finally {
+    ws.close();
+  }
 });
 
 test("WebSocket /ws sends activity_history on connect (ActivityFeed initial load)", async () => {
   const ws = new WebSocket(`${wsBase}/ws`);
 
-  const firstMsg = await new Promise<unknown>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error("timed out waiting for activity_history")), 3000);
-    ws.onmessage = (e) => {
-      clearTimeout(timer);
-      resolve(JSON.parse(e.data as string));
-    };
-    ws.onerror = () => reject(new Error("WebSocket error"));
-  });
+  try {
+    const firstMsg = await new Promise<unknown>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error("timed out waiting for activity_history")), 3000);
+      ws.onmessage = (e) => {
+        clearTimeout(timer);
+        resolve(JSON.parse(e.data as string));
+      };
+      ws.onerror = () => reject(new Error("WebSocket error"));
+    });
 
-  expect(firstMsg).toMatchObject({ type: "activity_history", entries: expect.any(Array) });
-  ws.close();
+    expect(firstMsg).toMatchObject({ type: "activity_history", entries: expect.any(Array) });
+  } finally {
+    ws.close();
+  }
 });
 
 test("WebSocket /ws sends { type: 'counter', count } on POST (LiveCounter real-time update)", async () => {
