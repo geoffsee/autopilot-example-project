@@ -3,13 +3,15 @@ import { Database } from "bun:sqlite";
 import { handleHealthGet } from "../src/health";
 
 let db: Database;
+let dbClosed = false;
 
 beforeEach(() => {
   db = new Database(":memory:");
+  dbClosed = false;
 });
 
 afterEach(() => {
-  try { db.close(); } catch {}
+  if (!dbClosed) db.close();
 });
 
 test("GET /api/health returns 200 with healthy payload when db is reachable", async () => {
@@ -25,6 +27,7 @@ test("GET /api/health returns 200 with healthy payload when db is reachable", as
 
 test("GET /api/health returns 503 with db error when db is closed", async () => {
   db.close();
+  dbClosed = true;
   const res = handleHealthGet(db);
   expect(res.status).toBe(503);
   const body = await res.json() as { uptime: number; db: string; version: string };
