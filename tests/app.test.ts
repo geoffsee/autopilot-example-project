@@ -36,7 +36,8 @@ test("WebSocket /ws sends activity_history on connect (ActivityFeed initial load
       const timer = setTimeout(() => reject(new Error("timed out waiting for activity_history")), 3000);
       ws.onmessage = (e) => {
         clearTimeout(timer);
-        resolve(JSON.parse(e.data as string));
+        const raw = typeof e.data === "string" ? e.data : String(e.data);
+        resolve(JSON.parse(raw));
       };
       ws.onerror = () => reject(new Error("WebSocket error"));
     });
@@ -55,21 +56,21 @@ test("WebSocket /ws sends { type: 'counter', count } on POST (LiveCounter real-t
     ws.onerror = () => reject(new Error("WebSocket connection failed"));
   });
 
-  const counterMsg = new Promise<{ type: string; count: number }>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error("timed out waiting for counter message")), 3000);
-    ws.onmessage = (e) => {
-      const msg = JSON.parse(e.data as string) as { type: string; count: number };
-      if (msg.type === "counter") {
-        clearTimeout(timer);
-        resolve(msg);
-      }
-    };
-  });
-
-  const res = await fetch(`${baseUrl}/api/counter`, { method: "POST" });
-  const { count } = (await res.json()) as { count: number };
-
   try {
+    const counterMsg = new Promise<{ type: string; count: number }>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error("timed out waiting for counter message")), 3000);
+      ws.onmessage = (e) => {
+        const raw = typeof e.data === "string" ? e.data : String(e.data);
+        const msg = JSON.parse(raw) as { type: string; count: number };
+        if (msg.type === "counter") {
+          clearTimeout(timer);
+          resolve(msg);
+        }
+      };
+    });
+
+    const res = await fetch(`${baseUrl}/api/counter`, { method: "POST" });
+    const { count } = (await res.json()) as { count: number };
     const msg = await counterMsg;
     expect(msg).toEqual({ type: "counter", count });
   } finally {
