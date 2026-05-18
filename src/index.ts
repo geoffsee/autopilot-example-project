@@ -1,11 +1,13 @@
 import { serve } from "bun";
+import { join } from "node:path";
 import index from "./index.html";
 import { createCounterDb, getCount, handleCounterPost } from "./counter";
-import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
+import { logActivity, getRecentActivity } from "./activity";
+import { runMigrations } from "./migrate";
 import { log } from "./logger";
 
 const db = createCounterDb();
-setupActivityTable(db);
+await runMigrations(db, join(import.meta.dir, "../migrations"));
 
 export function createServer(port?: number) {
   return serve({

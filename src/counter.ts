@@ -1,9 +1,7 @@
 import { Database } from "bun:sqlite";
 
 export function createCounterDb(path = "counter.db"): Database {
-  const db = new Database(path);
-  setupCounter(db);
-  return db;
+  return new Database(path);
 }
 
 export function getCount(db: Database): number {
