@@ -3,6 +3,7 @@ import index from "./index.html";
 import { createCounterDb, getCount, handleCounterPost } from "./counter";
 import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
 import { handleHealthGet } from "./health";
+import { log } from "./logger";
 
 const db = createCounterDb();
 setupActivityTable(db);
@@ -82,5 +83,5 @@ export function createServer(port?: number) {
 
 if (import.meta.main) {
   const server = createServer();
-  console.log(`🚀 Server running at ${server.url}`);
+  log.info("server started", { url: server.url.href });
 }
