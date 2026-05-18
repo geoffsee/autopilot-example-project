@@ -1,5 +1,5 @@
 import { Database } from "bun:sqlite";
-import { readdirSync } from "node:fs";
+import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 
 function ensureMigrationsTable(db: Database): void {
@@ -22,7 +22,7 @@ export async function runMigrations(db: Database, migrationsDir: string): Promis
   ensureMigrationsTable(db);
   const applied = getAppliedMigrations(db);
 
-  const files = readdirSync(migrationsDir)
+  const files = (await readdir(migrationsDir))
     .filter(f => f.endsWith(".sql"))
     .sort();
 

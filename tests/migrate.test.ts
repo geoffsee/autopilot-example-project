@@ -57,14 +57,16 @@ test("runMigrations throws and rolls back on invalid SQL", async () => {
   const tmpDir = mkdtempSync(tmpdir() + "/migrate-test-");
   writeFileSync(join(tmpDir, "002_bad.sql"), "THIS IS NOT VALID SQL;;;");
 
-  await expect(runMigrations(db, tmpDir)).rejects.toThrow();
+  try {
+    await expect(runMigrations(db, tmpDir)).rejects.toThrow();
 
-  // migration should not have been recorded
-  const rows = db
-    .query<{ filename: string }, []>("SELECT filename FROM _migrations")
-    .all();
-  expect(rows.length).toBe(0);
-
-  rmSync(tmpDir, { recursive: true });
-  db.close();
+    // migration should not have been recorded
+    const rows = db
+      .query<{ filename: string }, []>("SELECT filename FROM _migrations")
+      .all();
+    expect(rows.length).toBe(0);
+  } finally {
+    rmSync(tmpDir, { recursive: true });
+    db.close();
+  }
 });
