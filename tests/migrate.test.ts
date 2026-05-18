@@ -1,13 +1,15 @@
 import { test, expect } from "bun:test";
 import { Database } from "bun:sqlite";
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runMigrations } from "../src/migrate";
 
 const MIGRATIONS_DIR = join(import.meta.dir, "../migrations");
 
-test("runMigrations applies 001_init.sql and records it in _migrations", () => {
+test("runMigrations applies 001_init.sql and records it in _migrations", async () => {
   const db = new Database(":memory:");
-  runMigrations(db, MIGRATIONS_DIR);
+  await runMigrations(db, MIGRATIONS_DIR);
 
   const rows = db
     .query<{ filename: string }, []>("SELECT filename FROM _migrations ORDER BY filename")
@@ -25,15 +27,15 @@ test("runMigrations applies 001_init.sql and records it in _migrations", () => {
   db.close();
 });
 
-test("runMigrations second run is a no-op", () => {
+test("runMigrations second run is a no-op", async () => {
   const db = new Database(":memory:");
-  runMigrations(db, MIGRATIONS_DIR);
+  await runMigrations(db, MIGRATIONS_DIR);
 
   const countAfterFirst = db
     .query<{ filename: string }, []>("SELECT filename FROM _migrations")
     .all().length;
 
-  runMigrations(db, MIGRATIONS_DIR);
+  await runMigrations(db, MIGRATIONS_DIR);
 
   const countAfterSecond = db
     .query<{ filename: string }, []>("SELECT filename FROM _migrations")
@@ -44,18 +46,18 @@ test("runMigrations second run is a no-op", () => {
   db.close();
 });
 
-test("runMigrations throws on non-existent directory", () => {
+test("runMigrations throws on non-existent directory", async () => {
   const db = new Database(":memory:");
-  expect(() => runMigrations(db, "/tmp/does-not-exist-migrations-dir")).toThrow();
+  await expect(runMigrations(db, "/tmp/does-not-exist-migrations-dir")).rejects.toThrow();
   db.close();
 });
 
-test("runMigrations throws and rolls back on invalid SQL", () => {
+test("runMigrations throws and rolls back on invalid SQL", async () => {
   const db = new Database(":memory:");
-  const tmpDir = require("node:fs").mkdtempSync(require("node:os").tmpdir() + "/migrate-test-");
-  require("node:fs").writeFileSync(require("node:path").join(tmpDir, "002_bad.sql"), "THIS IS NOT VALID SQL;;;");
+  const tmpDir = mkdtempSync(tmpdir() + "/migrate-test-");
+  writeFileSync(join(tmpDir, "002_bad.sql"), "THIS IS NOT VALID SQL;;;");
 
-  expect(() => runMigrations(db, tmpDir)).toThrow();
+  await expect(runMigrations(db, tmpDir)).rejects.toThrow();
 
   // migration should not have been recorded
   const rows = db
@@ -63,6 +65,6 @@ test("runMigrations throws and rolls back on invalid SQL", () => {
     .all();
   expect(rows.length).toBe(0);
 
-  require("node:fs").rmSync(tmpDir, { recursive: true });
+  rmSync(tmpDir, { recursive: true });
   db.close();
 });

@@ -6,7 +6,7 @@ import { setupActivityTable, logActivity, getRecentActivity } from "./activity";
 import { runMigrations } from "./migrate";
 
 const db = createCounterDb();
-runMigrations(db, join(import.meta.dir, "../migrations"));
+await runMigrations(db, join(import.meta.dir, "../migrations"));
 setupActivityTable(db);
 
 export function createServer(port?: number) {

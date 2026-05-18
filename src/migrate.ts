@@ -1,5 +1,5 @@
 import { Database } from "bun:sqlite";
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { join } from "node:path";
 
 function ensureMigrationsTable(db: Database): void {
@@ -18,7 +18,7 @@ function getAppliedMigrations(db: Database): Set<string> {
   return new Set(rows.map(r => r.filename));
 }
 
-export function runMigrations(db: Database, migrationsDir: string): void {
+export async function runMigrations(db: Database, migrationsDir: string): Promise<void> {
   ensureMigrationsTable(db);
   const applied = getAppliedMigrations(db);
 
@@ -36,7 +36,7 @@ export function runMigrations(db: Database, migrationsDir: string): void {
 
   for (const file of files) {
     if (applied.has(file)) continue;
-    const sql = readFileSync(join(migrationsDir, file), "utf-8");
+    const sql = await Bun.file(join(migrationsDir, file)).text();
     applyMigration(file, sql);
   }
 }
