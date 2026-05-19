@@ -33,5 +33,7 @@ test("GET /api/health returns 503 with db error when db is closed", async () => 
   const body = await res.json() as { uptime: number; db: string; version: string };
   expect(body.db).toBe("error");
   expect(typeof body.uptime).toBe("number");
+  expect(body.uptime).toBeGreaterThanOrEqual(0);
   expect(typeof body.version).toBe("string");
+  expect(body.version.length).toBeGreaterThan(0);
 });
