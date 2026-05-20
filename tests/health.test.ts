@@ -2,22 +2,22 @@ import { test, expect, beforeEach, afterEach } from "bun:test";
 import { Database } from "bun:sqlite";
 import { handleHealthGet } from "../src/health";
 
+type HealthBody = { uptime: number; db: string; version: string };
+
 let db: Database;
-let dbClosed = false;
 
 beforeEach(() => {
   db = new Database(":memory:");
-  dbClosed = false;
 });
 
 afterEach(() => {
-  if (!dbClosed) db.close();
+  try { db.close(); } catch { /* already closed */ }
 });
 
 test("GET /api/health returns 200 with healthy payload when db is reachable", async () => {
   const res = handleHealthGet(db);
   expect(res.status).toBe(200);
-  const body = await res.json() as { uptime: number; db: string; version: string };
+  const body = await res.json() as HealthBody;
   expect(typeof body.uptime).toBe("number");
   expect(body.uptime).toBeGreaterThanOrEqual(0);
   expect(body.db).toBe("ok");
@@ -27,10 +27,9 @@ test("GET /api/health returns 200 with healthy payload when db is reachable", as
 
 test("GET /api/health returns 503 with db error when db is closed", async () => {
   db.close();
-  dbClosed = true;
   const res = handleHealthGet(db);
   expect(res.status).toBe(503);
-  const body = await res.json() as { uptime: number; db: string; version: string };
+  const body = await res.json() as HealthBody;
   expect(body.db).toBe("error");
   expect(typeof body.uptime).toBe("number");
   expect(body.uptime).toBeGreaterThanOrEqual(0);

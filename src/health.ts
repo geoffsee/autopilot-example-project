@@ -1,16 +1,12 @@
-import { Database, type Statement } from "bun:sqlite";
+import { Database } from "bun:sqlite";
 import pkg from "../package.json" with { type: "json" };
 
 const VERSION = pkg.version;
-let pingStmt: Statement | undefined;
 
 export function handleHealthGet(db: Database): Response {
   let dbStatus: "ok" | "error" = "ok";
   try {
-    if (!pingStmt) {
-      pingStmt = db.prepare("SELECT 1");
-    }
-    pingStmt.run();
+    db.query("SELECT 1").run();
   } catch {
     dbStatus = "error";
   }
