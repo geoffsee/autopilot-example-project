@@ -90,8 +90,11 @@ export function createServer(port?: number) {
       },
 
       "/api/counter/:name/increment": {
-        POST(req) {
+        POST(req, server) {
           trackRequest("/api/counter/:name/increment", "POST");
+          const ip = server.requestIP(req)?.address ?? "unknown";
+          const limited = rateLimiter(ip);
+          if (limited) return limited;
           return Response.json(incrementNamedCounter(db, req.params.name));
         },
       },
