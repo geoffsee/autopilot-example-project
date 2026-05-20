@@ -42,8 +42,8 @@ export function createServer(port?: number) {
           return Response.json({ count: getCount(db) });
         },
         async POST(req, server) {
-          const authed = requireAuth(req);
-          if (authed) return authed;
+          const authErr = requireAuth(req);
+          if (authErr) return authErr;
           const ip = server.requestIP(req)?.address ?? "unknown";
           const limited = rateLimiter(ip);
           if (limited) return limited;

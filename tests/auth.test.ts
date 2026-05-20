@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { checkBearerAuth } from "../src/auth";
+import { checkBearerAuth, requireAuth } from "../src/auth";
 
 function makeRequest(authHeader?: string): Request {
   const headers: HeadersInit = {};
@@ -38,4 +38,24 @@ test("non-Bearer scheme returns 401", async () => {
   const res = checkBearerAuth(makeRequest("Basic dXNlcjpwYXNz"), "secret123");
   expect(res).not.toBeNull();
   expect(res!.status).toBe(401);
+});
+
+test("requireAuth returns 500 when API_TOKEN not configured", () => {
+  delete process.env.API_TOKEN;
+  const res = requireAuth(makeRequest());
+  expect(res?.status).toBe(500);
+});
+
+test("requireAuth rejects when API_TOKEN set and token missing", () => {
+  process.env.API_TOKEN = "secret";
+  const res = requireAuth(makeRequest());
+  expect(res?.status).toBe(401);
+  delete process.env.API_TOKEN;
+});
+
+test("requireAuth passes when API_TOKEN set and correct token provided", () => {
+  process.env.API_TOKEN = "secret";
+  const res = requireAuth(makeRequest("Bearer secret"));
+  expect(res).toBeNull();
+  delete process.env.API_TOKEN;
 });
