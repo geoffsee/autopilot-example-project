@@ -6,6 +6,7 @@ let baseUrl: string;
 let wsBase: string;
 
 beforeAll(() => {
+  process.env.API_TOKEN = "test-token";
   server = createServer(0);
   baseUrl = server.url.origin;
   wsBase = baseUrl.replace(/^http/, "ws");
@@ -13,6 +14,7 @@ beforeAll(() => {
 
 afterAll(() => {
   server.stop(true);
+  delete process.env.API_TOKEN;
 });
 
 test("WebSocket /ws is reachable", async () => {
@@ -69,7 +71,10 @@ test("WebSocket /ws sends { type: 'counter', count } on POST (LiveCounter real-t
       };
     });
 
-    const res = await fetch(`${baseUrl}/api/counter`, { method: "POST" });
+    const res = await fetch(`${baseUrl}/api/counter`, {
+      method: "POST",
+      headers: { Authorization: "Bearer test-token" },
+    });
     const { count } = (await res.json()) as { count: number };
     const msg = await counterMsg;
     expect(msg).toEqual({ type: "counter", count });
