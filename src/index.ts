@@ -5,6 +5,7 @@ import { createCounterDb, getCount, handleCounterPost, getNamedCounter, incremen
 import { logActivity, getRecentActivity } from "./activity";
 import { runMigrations } from "./migrate";
 import { handleHealthGet } from "./health";
+import { handleMetricsGet, trackRequest } from "./metrics";
 import { log } from "./logger";
 
 const db = createCounterDb();
@@ -16,30 +17,43 @@ export function createServer(port?: number) {
     routes: {
       "/*": index,
 
+      "/metrics": {
+        GET(_req) {
+          trackRequest("/metrics", "GET");
+          return handleMetricsGet(db);
+        },
+      },
+
       "/api/health": {
         GET(_req) {
+          trackRequest("/api/health", "GET");
           return handleHealthGet(db);
         },
       },
 
       "/api/hello": {
         async GET(_req) {
+          trackRequest("/api/hello", "GET");
           return Response.json({ message: "Hello, world!", method: "GET" });
         },
         async PUT(_req) {
+          trackRequest("/api/hello", "PUT");
           return Response.json({ message: "Hello, world!", method: "PUT" });
         },
       },
 
       "/api/hello/:name": async (req) => {
+        trackRequest("/api/hello/:name", req.method);
         return Response.json({ message: `Hello, ${req.params.name}!` });
       },
 
       "/api/counter": {
         GET(_req) {
+          trackRequest("/api/counter", "GET");
           return Response.json({ count: getCount(db) });
         },
         async POST(req, server) {
+          trackRequest("/api/counter", "POST");
           const { response, count } = await handleCounterPost(req, db);
           if (response.ok && typeof count === "number") {
             server.publish("counter", JSON.stringify({ type: "counter", count }));
@@ -52,24 +66,28 @@ export function createServer(port?: number) {
 
       "/api/activity": {
         GET(_req) {
+          trackRequest("/api/activity", "GET");
           return Response.json({ entries: getRecentActivity(db) });
         },
       },
 
       "/api/counter/history": {
         GET(_req) {
+          trackRequest("/api/counter/history", "GET");
           return Response.json({ entries: getRecentActivity(db) });
         },
       },
 
       "/api/counter/:name": {
         GET(req) {
+          trackRequest("/api/counter/:name", "GET");
           return Response.json(getNamedCounter(db, req.params.name));
         },
       },
 
       "/api/counter/:name/increment": {
         POST(req) {
+          trackRequest("/api/counter/:name/increment", "POST");
           return Response.json(incrementNamedCounter(db, req.params.name));
         },
       },
