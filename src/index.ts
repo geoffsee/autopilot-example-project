@@ -7,6 +7,7 @@ import { runMigrations } from "./migrate";
 import { handleHealthGet } from "./health";
 import { handleMetricsGet, trackRequest } from "./metrics";
 import { log } from "./logger";
+import { rateLimiter } from "./rate-limit";
 
 const db = createCounterDb();
 await runMigrations(db, join(import.meta.dir, "../migrations"));
@@ -54,6 +55,9 @@ export function createServer(port?: number) {
         },
         async POST(req, server) {
           trackRequest("/api/counter", "POST");
+          const ip = server.requestIP(req)?.address ?? "unknown";
+          const limited = rateLimiter(ip);
+          if (limited) return limited;
           const { response, count } = await handleCounterPost(req, db);
           if (response.ok && typeof count === "number") {
             server.publish("counter", JSON.stringify({ type: "counter", count }));
