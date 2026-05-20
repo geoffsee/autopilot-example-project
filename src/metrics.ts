@@ -11,6 +11,10 @@ export function resetRequestCounts(): void {
   requestCounts.clear();
 }
 
+function escapeLabel(v: string): string {
+  return v.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n");
+}
+
 export function handleMetricsGet(db: Database): Response {
   const lines: string[] = [];
 
@@ -23,7 +27,7 @@ export function handleMetricsGet(db: Database): Response {
       )
       .all();
     for (const c of counters) {
-      lines.push(`counter_value{name="${c.name}"} ${c.value}`);
+      lines.push(`counter_value{name="${escapeLabel(c.name)}"} ${c.value}`);
     }
   } catch {
     // counters table may not exist in minimal test setups
