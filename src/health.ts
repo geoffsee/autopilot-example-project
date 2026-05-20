@@ -13,6 +13,7 @@ export function handleHealthGet(db: Database): Response {
 
   return Response.json(
     {
+      status: dbStatus,
       uptime: process.uptime(),
       db: dbStatus,
       version: VERSION,
