@@ -4,6 +4,7 @@ import index from "./index.html";
 import { createCounterDb, getCount, handleCounterPost } from "./counter";
 import { logActivity, getRecentActivity } from "./activity";
 import { runMigrations } from "./migrate";
+import { handleHealthGet } from "./health";
 import { log } from "./logger";
 
 const db = createCounterDb();
@@ -14,6 +15,12 @@ export function createServer(port?: number) {
     port,
     routes: {
       "/*": index,
+
+      "/api/health": {
+        GET(_req) {
+          return handleHealthGet(db);
+        },
+      },
 
       "/api/hello": {
         async GET(_req) {
