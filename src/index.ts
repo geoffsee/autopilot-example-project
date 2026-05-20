@@ -8,6 +8,7 @@ import { handleHealthGet } from "./health";
 import { handleMetricsGet, trackRequest } from "./metrics";
 import { log } from "./logger";
 import { rateLimiter } from "./rate-limit";
+import { requireAuth } from "./auth";
 
 const db = createCounterDb();
 await runMigrations(db, join(import.meta.dir, "../migrations"));
@@ -92,6 +93,8 @@ export function createServer(port?: number) {
       "/api/counter/:name/increment": {
         POST(req, server) {
           trackRequest("/api/counter/:name/increment", "POST");
+          const authErr = requireAuth(req);
+          if (authErr) return authErr;
           const ip = server.requestIP(req)?.address ?? "unknown";
           const limited = rateLimiter(ip);
           if (limited) return limited;

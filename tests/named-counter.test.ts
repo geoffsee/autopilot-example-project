@@ -58,3 +58,8 @@ test("GET /api/counter/history still works after named-counter migration", async
   const body = await res.json() as { entries: unknown[] };
   expect(Array.isArray(body.entries)).toBe(true);
 });
+
+test("POST /api/counter/:name/increment returns 401 without auth", async () => {
+  const res = await fetch(`${server.url.origin}/api/counter/hits/increment`, { method: "POST" });
+  expect(res.status).toBe(401);
+});
