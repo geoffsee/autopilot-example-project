@@ -9,10 +9,19 @@ export function createRateLimiter(opts?: { max?: number; windowMs?: number }) {
 
   const store = new Map<string, WindowState>();
 
+  // Evict entries whose windows have expired so one-time IPs don't accumulate indefinitely.
+  setInterval(() => {
+    const now = Date.now();
+    for (const [ip, state] of store) {
+      if (now - state.windowStart >= windowMs) store.delete(ip);
+    }
+  }, windowMs).unref();
+
   return function check(ip: string, now = Date.now()): Response | null {
     const state = store.get(ip);
 
     if (!state || now - state.windowStart >= windowMs) {
+      if (state) store.delete(ip);
       store.set(ip, { count: 1, windowStart: now });
       return null;
     }
