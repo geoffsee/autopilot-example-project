@@ -1,7 +1,7 @@
 import { serve } from "bun";
 import { join } from "node:path";
 import index from "./index.html";
-import { createCounterDb, getCount, handleCounterPost } from "./counter";
+import { createCounterDb, getCount, handleCounterPost, getNamedCounter, incrementNamedCounter } from "./counter";
 import { logActivity, getRecentActivity } from "./activity";
 import { runMigrations } from "./migrate";
 import { handleHealthGet } from "./health";
@@ -59,6 +59,18 @@ export function createServer(port?: number) {
       "/api/counter/history": {
         GET(_req) {
           return Response.json({ entries: getRecentActivity(db) });
+        },
+      },
+
+      "/api/counter/:name": {
+        GET(req) {
+          return Response.json(getNamedCounter(db, req.params.name));
+        },
+      },
+
+      "/api/counter/:name/increment": {
+        POST(req) {
+          return Response.json(incrementNamedCounter(db, req.params.name));
         },
       },
 
