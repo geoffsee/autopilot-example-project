@@ -1,6 +1,6 @@
 import { expect, test, beforeAll, afterAll } from "bun:test";
 import { serve } from "bun";
-import { createCounterDb, handleCounterPost } from "../src/counter";
+import { createCounterDb, handleCounterPost, setupCounter } from "../src/counter";
 import { setupActivityTable, logActivity, getRecentActivity } from "../src/activity";
 import { createServer } from "../src/index";
 import type { ActivityEntry } from "../src/activity";
@@ -26,6 +26,7 @@ test("GET /api/counter/history exists in createServer and returns 200", async ()
 // Behavioural tests against an isolated in-memory server
 function makeIsolatedServer() {
   const db = createCounterDb(":memory:");
+  setupCounter(db);
   setupActivityTable(db);
   const server = serve({
     port: 0,
