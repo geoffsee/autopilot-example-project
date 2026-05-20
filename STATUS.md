@@ -12,15 +12,17 @@ _Last updated: 2026-05-20_
 | F2 | Structured JSON logging | #146 | ✅ Shipped |
 | F3 | `GET /api/health` endpoint | #142 | ✅ Shipped |
 
-## Next Sprint (Recommended)
+## Active Sprint — [#157](https://github.com/geoffsee/autopilot-example-project/issues/157)
 
-| ID | Description | Priority | Sizing |
-|----|-------------|----------|--------|
-| C3 | Named counters (`GET|POST /api/counter/:name`) | 1 | M |
-| F4 | Prometheus `/metrics` endpoint | 2 | S |
-| C4 | Rate limiting (429 + `Retry-After`) | 3 | S |
-| C5 | Bearer token auth on POST endpoints | 4 | S |
-| F5 | p50/p95 CI latency baseline | 5 | S |
+| ID | Description | Priority | Sizing | Issue |
+|----|-------------|----------|--------|-------|
+| C3 | Named counters (`GET|POST /api/counter/:name`) | 1 | M | #153 |
+| F4 | Prometheus `/metrics` endpoint | 2 | S | #154 |
+| C4 | Rate limiting (429 + `Retry-After`) | 3 | S | #155 |
+| C5 | Bearer token auth on POST endpoints | 4 | S | #156 |
+
+**Manual control-plane follow-up (not in executable sprint scope):**
+- F5 — p50/p95 CI latency baseline: requires `.github/workflows/**` changes; human review required.
 
 ## Deferred / Backlog
 
