@@ -7,6 +7,7 @@ import { runMigrations } from "./migrate";
 import { handleHealthGet } from "./health";
 import { log } from "./logger";
 import { rateLimiter } from "./rate-limit";
+import { requireAuth } from "./auth";
 
 const db = createCounterDb();
 await runMigrations(db, join(import.meta.dir, "../migrations"));
@@ -41,6 +42,8 @@ export function createServer(port?: number) {
           return Response.json({ count: getCount(db) });
         },
         async POST(req, server) {
+          const authed = requireAuth(req);
+          if (authed) return authed;
           const ip = server.requestIP(req)?.address ?? "unknown";
           const limited = rateLimiter(ip);
           if (limited) return limited;
