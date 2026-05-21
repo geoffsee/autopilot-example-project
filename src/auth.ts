@@ -26,7 +26,7 @@ function tokenMatches(provided: string, expected: string): boolean {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-export function createAuth(token = process.env.API_TOKEN) {
+function createAuth(token = process.env.API_TOKEN) {
   const configuredToken = token;
 
   return function requireAuth(req: Request): Response | null {
