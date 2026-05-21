@@ -52,6 +52,14 @@ test("isPrivateIp: public IPs are allowed", () => {
   expect(isPrivateIp("93.184.216.34")).toBe(false);
 });
 
+test("isPrivateIp: IPv6 private addresses are blocked", () => {
+  expect(isPrivateIp("::1")).toBe(true);           // loopback
+  expect(isPrivateIp("fe80::1")).toBe(true);        // link-local
+  expect(isPrivateIp("fc00::1")).toBe(true);        // ULA
+  expect(isPrivateIp("fd12:3456::1")).toBe(true);   // ULA
+  expect(isPrivateIp("2001:db8::1")).toBe(false);   // documentation range (public)
+});
+
 // --- deliverWebhook SSRF blocking unit test ---
 
 test("deliverWebhook: blocks delivery when IP resolves to private range", async () => {
@@ -88,7 +96,8 @@ test("deliverWebhook: delivers when IP resolves to public range", async () => {
 
   globalThis.fetch = origFetch;
   expect(fetched).toHaveLength(1);
-  expect(fetched[0].url).toBe("http://hooks.example.com/counter");
+  // URL uses the pre-resolved IP to prevent DNS rebinding
+  expect(fetched[0].url).toBe("http://93.184.216.34/counter");
   expect(fetched[0].body).toEqual({ name: "hits", value: 42, timestamp: "2026-01-01T00:00:00.000Z" });
 });
 

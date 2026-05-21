@@ -3,6 +3,11 @@ import { lookup } from "node:dns/promises";
 import { log } from "./logger";
 
 export function isPrivateIp(ip: string): boolean {
+  // IPv6 loopback / link-local / ULA
+  if (ip === "::1") return true;
+  if (ip.toLowerCase().startsWith("fe80:")) return true;  // link-local
+  if (/^f[cd]/i.test(ip)) return true;                   // fc00::/7 unique-local
+  // IPv4
   const parts = ip.split(".").map(Number);
   if (parts.length !== 4 || parts.some(n => isNaN(n) || n < 0 || n > 255)) return false;
   const [a, b] = parts;
@@ -14,6 +19,7 @@ export function isPrivateIp(ip: string): boolean {
   return false;
 }
 
+// Keep in sync with migrations/005_webhooks.sql
 export function setupWebhooks(db: Database): void {
   db.run(`
     CREATE TABLE IF NOT EXISTS webhooks (
@@ -61,7 +67,7 @@ export async function deliverWebhook(
   }
 
   const resolve = opts._resolveIp ?? (async (h: string) => {
-    const { address } = await lookup(h);
+    const { address } = await lookup(h, { family: 4 });
     return address;
   });
 
@@ -78,11 +84,15 @@ export async function deliverWebhook(
     return;
   }
 
+  // Connect directly to the pre-checked IP to prevent DNS rebinding (TOCTOU).
+  const fetchUrl = new URL(url);
+  fetchUrl.hostname = ip;
   try {
-    await fetch(url, {
+    await fetch(fetchUrl.toString(), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Host: hostname },
       body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(5_000),
     });
   } catch (err) {
     log.error("webhook.delivery.failed", { url, error: String(err) });
