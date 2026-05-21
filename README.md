@@ -16,6 +16,10 @@ The autopilot action runs everything inline — no dispatched follow-up workflow
 3. Settings → Actions → General → enable *Read and write permissions* and *Allow GitHub Actions to create and approve pull requests*.
 4. Open a sprint issue with the `sprint` label to kick off the work-dispatch route, or leave it empty and the factory cycle will seed ideas on the next heartbeat.
 
+## Architecture Decision Records
+
+Key design decisions are documented in [`adr/`](adr/README.md).
+
 ## Why these events
 
 | Event | Why fire here |
