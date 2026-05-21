@@ -1,14 +1,15 @@
 import { serve } from "bun";
 import { join } from "node:path";
 import index from "./index.html";
-import { createCounterDb, getCount, handleCounterPost, getNamedCounter, incrementNamedCounter, resetNamedCounter } from "./counter";
+import { createCounterDb, getCount, handleCounterPost, getNamedCounter, incrementNamedCounterTracked, resetNamedCounter } from "./counter";
 import { logActivity, getRecentActivity } from "./activity";
 import { runMigrations } from "./migrate";
 import { handleHealthGet } from "./health";
 import { handleMetricsGet, trackRequest } from "./metrics";
 import { log } from "./logger";
 import { rateLimiter } from "./rate-limit";
-import { requireAuth } from "./auth";
+import { requireWriteAuth, requireReadAuth } from "./auth";
+import { writeAuditEntry, getAuditEntries } from "./audit";
 
 const db = createCounterDb();
 await runMigrations(db, join(import.meta.dir, "../migrations"));
@@ -50,13 +51,15 @@ export function createServer(port?: number) {
       },
 
       "/api/counter": {
-        GET(_req) {
+        GET(req) {
           trackRequest("/api/counter", "GET");
+          const authErr = requireReadAuth(req);
+          if (authErr) return authErr;
           return Response.json({ count: getCount(db) });
         },
         async POST(req, server) {
           trackRequest("/api/counter", "POST");
-          const authErr = requireAuth(req);
+          const authErr = requireWriteAuth(req);
           if (authErr) return authErr;
           const ip = server.requestIP(req)?.address ?? "unknown";
           const limited = rateLimiter(ip);
@@ -72,22 +75,43 @@ export function createServer(port?: number) {
       },
 
       "/api/activity": {
-        GET(_req) {
+        GET(req) {
           trackRequest("/api/activity", "GET");
+          const authErr = requireReadAuth(req);
+          if (authErr) return authErr;
           return Response.json({ entries: getRecentActivity(db) });
         },
       },
 
       "/api/counter/history": {
-        GET(_req) {
+        GET(req) {
           trackRequest("/api/counter/history", "GET");
+          const authErr = requireReadAuth(req);
+          if (authErr) return authErr;
           return Response.json({ entries: getRecentActivity(db) });
+        },
+      },
+
+      "/api/audit": {
+        GET(req) {
+          trackRequest("/api/audit", "GET");
+          const authErr = requireReadAuth(req);
+          if (authErr) return authErr;
+          const url = new URL(req.url);
+          const counter = url.searchParams.get("counter") ?? undefined;
+          const limit = Number(url.searchParams.get("limit") ?? 50);
+          const offset = Number(url.searchParams.get("offset") ?? 0);
+          return Response.json({
+            entries: getAuditEntries(db, { counter, limit, offset }),
+          });
         },
       },
 
       "/api/counter/:name": {
         GET(req) {
           trackRequest("/api/counter/:name", "GET");
+          const authErr = requireReadAuth(req);
+          if (authErr) return authErr;
           return Response.json(getNamedCounter(db, req.params.name));
         },
       },
@@ -95,13 +119,14 @@ export function createServer(port?: number) {
       "/api/counter/:name/reset": {
         POST(req) {
           trackRequest("/api/counter/:name/reset", "POST");
-          const authErr = requireAuth(req);
+          const authErr = requireWriteAuth(req);
           if (authErr) return authErr;
           const { name } = req.params;
           const result = resetNamedCounter(db, name);
           if (!result) {
             return Response.json({ error: "Counter not found" }, { status: 404 });
           }
+          writeAuditEntry(db, "api", name, result.oldValue, result.value);
           log.info("counter.reset", {
             actor: "api",
             counter: name,
@@ -115,12 +140,14 @@ export function createServer(port?: number) {
       "/api/counter/:name/increment": {
         POST(req, server) {
           trackRequest("/api/counter/:name/increment", "POST");
-          const authErr = requireAuth(req);
+          const authErr = requireWriteAuth(req);
           if (authErr) return authErr;
           const ip = server.requestIP(req)?.address ?? "unknown";
           const limited = rateLimiter(ip);
           if (limited) return limited;
-          return Response.json(incrementNamedCounter(db, req.params.name));
+          const result = incrementNamedCounterTracked(db, req.params.name);
+          writeAuditEntry(db, "api", req.params.name, result.oldValue, result.value);
+          return Response.json({ name: result.name, value: result.value });
         },
       },
 
