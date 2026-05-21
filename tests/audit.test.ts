@@ -3,7 +3,7 @@ import { Database } from "bun:sqlite";
 import { join } from "node:path";
 import { writeAuditEntry, getAuditEntries } from "../src/audit";
 import { runMigrations } from "../src/migrate";
-import { createServer } from "../src/index";
+import type { createServer } from "../src/index";
 
 let db: Database;
 
@@ -64,7 +64,11 @@ test("getAuditEntries supports limit and offset pagination", () => {
 let server: ReturnType<typeof createServer>;
 let baseUrl: string;
 
-beforeAll(() => {
+beforeAll(async () => {
+  // Explicitly open-auth mode — defer import so env vars are read before _rbac singleton initialises
+  process.env.API_TOKEN = "";
+  process.env.READ_TOKEN = "";
+  const { createServer } = await import("../src/index");
   server = createServer(0);
   baseUrl = server.url.origin;
 });

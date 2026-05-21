@@ -70,14 +70,17 @@ export function createRBAC(
   return { requireWrite, requireRead };
 }
 
+const _auth = createAuth();
+const _rbac = createRBAC();
+
 export function requireAuth(req: Request): Response | null {
-  return createAuth()(req);
+  return _auth(req);
 }
 
 export function requireWriteAuth(req: Request): Response | null {
-  return createRBAC().requireWrite(req);
+  return _rbac.requireWrite(req);
 }
 
 export function requireReadAuth(req: Request): Response | null {
-  return createRBAC().requireRead(req);
+  return _rbac.requireRead(req);
 }

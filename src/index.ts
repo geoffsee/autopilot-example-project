@@ -100,7 +100,7 @@ export function createServer(port?: number) {
           const url = new URL(req.url);
           const counter = url.searchParams.get("counter") ?? undefined;
           const limitRaw = parseInt(url.searchParams.get("limit") ?? "", 10);
-          const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : 50;
+          const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 1000) : 50;
           const offsetRaw = parseInt(url.searchParams.get("offset") ?? "", 10);
           const offset = Number.isFinite(offsetRaw) && offsetRaw >= 0 ? offsetRaw : 0;
           return Response.json({
