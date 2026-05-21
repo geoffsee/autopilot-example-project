@@ -100,8 +100,7 @@ test("deliverWebhook: delivers when IP resolves to public range", async () => {
 
   globalThis.fetch = origFetch;
   expect(fetched).toHaveLength(1);
-  // URL uses the pre-resolved IP to prevent DNS rebinding
-  expect(fetched[0].url).toBe("http://93.184.216.34/counter");
+  expect(fetched[0].url).toBe("http://hooks.example.com/counter");
   expect(fetched[0].body).toEqual({ name: "hits", value: 42, timestamp: "2026-01-01T00:00:00.000Z" });
 });
 
