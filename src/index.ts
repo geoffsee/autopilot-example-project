@@ -93,7 +93,7 @@ export function createServer(port?: number) {
       },
 
       "/api/counter/:name/reset": {
-        POST(req) {
+        POST(req, server) {
           trackRequest("/api/counter/:name/reset", "POST");
           const authErr = requireAuth(req);
           if (authErr) return authErr;
@@ -103,7 +103,7 @@ export function createServer(port?: number) {
             return Response.json({ error: "Counter not found" }, { status: 404 });
           }
           log.info("counter.reset", {
-            actor: "api",
+            actor: server.requestIP(req)?.address ?? "unknown",
             counter: name,
             old_value: result.oldValue,
             timestamp: new Date().toISOString(),
