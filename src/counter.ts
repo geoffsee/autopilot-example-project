@@ -77,7 +77,7 @@ export function incrementNamedCounterTracked(
   const row = db.query<{ value: number; old_value: number }, [string]>(
     "UPDATE counters SET value = value + 1 WHERE name = ? RETURNING value, value - 1 AS old_value"
   ).get(name);
-  return { name, value: row?.value ?? 1, oldValue: row?.old_value ?? 0 };
+  return { name, value: row?.value ?? 0, oldValue: row?.old_value ?? 0 };
 }
 
 export async function handleCounterPost(
