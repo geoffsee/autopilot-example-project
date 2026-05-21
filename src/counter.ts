@@ -53,10 +53,10 @@ export function getCountersByPrefix(
   prefix: string
 ): { prefix: string; total: number; counters: { name: string; value: number }[] } {
   const rows = db
-    .query<{ name: string; value: number }, [string]>(
-      "SELECT name, value FROM counters WHERE name LIKE ? || '%'"
+    .query<{ name: string; value: number }, [string, string]>(
+      "SELECT name, value FROM counters WHERE name >= ? AND name < ?"
     )
-    .all(prefix);
+    .all(prefix, prefix + "\xff");
   const total = rows.reduce((sum, r) => sum + r.value, 0);
   return { prefix, total, counters: rows };
 }
