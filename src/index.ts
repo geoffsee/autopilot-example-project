@@ -97,6 +97,9 @@ export function createServer(port?: number) {
           trackRequest("/api/counter/:name/reset", "POST");
           const authErr = requireAuth(req);
           if (authErr) return authErr;
+          const ip = server.requestIP(req)?.address ?? "unknown";
+          const limited = rateLimiter(ip);
+          if (limited) return limited;
           const { name } = req.params;
           const result = resetNamedCounter(db, name);
           if (!result) {
