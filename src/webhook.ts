@@ -1,6 +1,8 @@
 import { Database } from "bun:sqlite";
 import { lookup } from "node:dns/promises";
+import { join } from "node:path";
 import { log } from "./logger";
+import { runMigrations } from "./migrate";
 
 export function isPrivateIp(ip: string): boolean {
   // IPv6 loopback / link-local / ULA
@@ -11,6 +13,7 @@ export function isPrivateIp(ip: string): boolean {
   const parts = ip.split(".").map(Number);
   if (parts.length !== 4 || parts.some(n => isNaN(n) || n < 0 || n > 255)) return false;
   const [a, b] = parts;
+  if (a === 0) return true;                            // 0.0.0.0/8 — any-interface, routes to localhost
   if (a === 127) return true;                          // 127.0.0.0/8 loopback
   if (a === 10) return true;                           // 10.0.0.0/8 RFC-1918
   if (a === 172 && b >= 16 && b <= 31) return true;   // 172.16.0.0/12 RFC-1918
@@ -19,15 +22,8 @@ export function isPrivateIp(ip: string): boolean {
   return false;
 }
 
-// Keep in sync with migrations/005_webhooks.sql
-export function setupWebhooks(db: Database): void {
-  db.run(`
-    CREATE TABLE IF NOT EXISTS webhooks (
-      counter_name TEXT PRIMARY KEY,
-      url          TEXT NOT NULL,
-      created_at   TEXT NOT NULL
-    )
-  `);
+export async function setupWebhooks(db: Database): Promise<void> {
+  await runMigrations(db, join(import.meta.dir, "../migrations"));
 }
 
 export function registerWebhook(db: Database, counterName: string, url: string): void {

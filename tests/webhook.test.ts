@@ -40,6 +40,10 @@ test("isPrivateIp: loopback 127.x.x.x", () => {
   expect(isPrivateIp("128.0.0.1")).toBe(false);
 });
 
+test("isPrivateIp: 0.0.0.0 any-interface is blocked", () => {
+  expect(isPrivateIp("0.0.0.0")).toBe(true);
+});
+
 test("isPrivateIp: link-local 169.254.x.x", () => {
   expect(isPrivateIp("169.254.0.1")).toBe(true);
   expect(isPrivateIp("169.253.0.1")).toBe(false);
@@ -117,42 +121,42 @@ test("deliverWebhook: non-fatal when fetch throws", async () => {
 
 // --- DB unit tests ---
 
-test("registerWebhook stores URL; getWebhookUrl retrieves it", () => {
+test("registerWebhook stores URL; getWebhookUrl retrieves it", async () => {
   const db = new Database(":memory:");
-  setupWebhooks(db);
+  await setupWebhooks(db);
   registerWebhook(db, "hits", "https://hooks.example.com/hits");
   expect(getWebhookUrl(db, "hits")).toBe("https://hooks.example.com/hits");
   db.close();
 });
 
-test("registerWebhook replaces existing URL for same counter", () => {
+test("registerWebhook replaces existing URL for same counter", async () => {
   const db = new Database(":memory:");
-  setupWebhooks(db);
+  await setupWebhooks(db);
   registerWebhook(db, "hits", "https://a.example.com/hook");
   registerWebhook(db, "hits", "https://b.example.com/hook");
   expect(getWebhookUrl(db, "hits")).toBe("https://b.example.com/hook");
   db.close();
 });
 
-test("deregisterWebhook removes the URL and returns true", () => {
+test("deregisterWebhook removes the URL and returns true", async () => {
   const db = new Database(":memory:");
-  setupWebhooks(db);
+  await setupWebhooks(db);
   registerWebhook(db, "hits", "https://hooks.example.com/hits");
   expect(deregisterWebhook(db, "hits")).toBe(true);
   expect(getWebhookUrl(db, "hits")).toBeNull();
   db.close();
 });
 
-test("deregisterWebhook returns false for unknown counter", () => {
+test("deregisterWebhook returns false for unknown counter", async () => {
   const db = new Database(":memory:");
-  setupWebhooks(db);
+  await setupWebhooks(db);
   expect(deregisterWebhook(db, "nonexistent")).toBe(false);
   db.close();
 });
 
-test("getWebhookUrl returns null when no webhook registered", () => {
+test("getWebhookUrl returns null when no webhook registered", async () => {
   const db = new Database(":memory:");
-  setupWebhooks(db);
+  await setupWebhooks(db);
   expect(getWebhookUrl(db, "hits")).toBeNull();
   db.close();
 });
