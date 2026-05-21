@@ -1,16 +1,15 @@
 import { test, expect, beforeEach, afterEach, beforeAll, afterAll } from "bun:test";
 import { Database } from "bun:sqlite";
-import { setupCounter, setupNamedCounters } from "../src/counter";
-import { writeAuditEntry, getAuditEntries, setupAudit } from "../src/audit";
+import { join } from "node:path";
+import { writeAuditEntry, getAuditEntries } from "../src/audit";
+import { runMigrations } from "../src/migrate";
 import { createServer } from "../src/index";
 
 let db: Database;
 
-beforeEach(() => {
+beforeEach(async () => {
   db = new Database(":memory:");
-  setupCounter(db);
-  setupNamedCounters(db);
-  setupAudit(db);
+  await runMigrations(db, join(import.meta.dir, "../migrations"));
 });
 
 afterEach(() => {

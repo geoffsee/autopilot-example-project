@@ -99,8 +99,10 @@ export function createServer(port?: number) {
           if (authErr) return authErr;
           const url = new URL(req.url);
           const counter = url.searchParams.get("counter") ?? undefined;
-          const limit = Number(url.searchParams.get("limit") ?? 50);
-          const offset = Number(url.searchParams.get("offset") ?? 0);
+          const limitRaw = parseInt(url.searchParams.get("limit") ?? "", 10);
+          const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : 50;
+          const offsetRaw = parseInt(url.searchParams.get("offset") ?? "", 10);
+          const offset = Number.isFinite(offsetRaw) && offsetRaw >= 0 ? offsetRaw : 0;
           return Response.json({
             entries: getAuditEntries(db, { counter, limit, offset }),
           });
@@ -117,18 +119,19 @@ export function createServer(port?: number) {
       },
 
       "/api/counter/:name/reset": {
-        POST(req) {
+        POST(req, server) {
           trackRequest("/api/counter/:name/reset", "POST");
           const authErr = requireWriteAuth(req);
           if (authErr) return authErr;
+          const ip = server.requestIP(req)?.address ?? "unknown";
           const { name } = req.params;
           const result = resetNamedCounter(db, name);
           if (!result) {
             return Response.json({ error: "Counter not found" }, { status: 404 });
           }
-          writeAuditEntry(db, "api", name, result.oldValue, result.value);
+          writeAuditEntry(db, ip, name, result.oldValue, result.value);
           log.info("counter.reset", {
-            actor: "api",
+            actor: ip,
             counter: name,
             old_value: result.oldValue,
             timestamp: new Date().toISOString(),
@@ -146,7 +149,7 @@ export function createServer(port?: number) {
           const limited = rateLimiter(ip);
           if (limited) return limited;
           const result = incrementNamedCounterTracked(db, req.params.name);
-          writeAuditEntry(db, "api", req.params.name, result.oldValue, result.value);
+          writeAuditEntry(db, ip, req.params.name, result.oldValue, result.value);
           return Response.json({ name: result.name, value: result.value });
         },
       },

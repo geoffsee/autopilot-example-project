@@ -9,19 +9,6 @@ export interface AuditEntry {
   timestamp: string;
 }
 
-export function setupAudit(db: Database): void {
-  db.run(`
-    CREATE TABLE IF NOT EXISTS _audit (
-      id           INTEGER PRIMARY KEY AUTOINCREMENT,
-      actor        TEXT NOT NULL,
-      counter_name TEXT NOT NULL,
-      old_value    INTEGER NOT NULL,
-      new_value    INTEGER NOT NULL,
-      timestamp    TEXT NOT NULL
-    )
-  `);
-}
-
 export function writeAuditEntry(
   db: Database,
   actor: string,

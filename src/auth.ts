@@ -72,10 +72,11 @@ export function createRBAC(
 
 export const requireAuth = createAuth();
 
+const _rbac = createRBAC();
 export function requireWriteAuth(req: Request): Response | null {
-  return createRBAC(process.env.API_TOKEN, process.env.READ_TOKEN).requireWrite(req);
+  return _rbac.requireWrite(req);
 }
 
 export function requireReadAuth(req: Request): Response | null {
-  return createRBAC(process.env.API_TOKEN, process.env.READ_TOKEN).requireRead(req);
+  return _rbac.requireRead(req);
 }
