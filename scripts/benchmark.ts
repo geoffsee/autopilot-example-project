@@ -1,18 +1,4 @@
-/**
- * F5 CI Latency Baseline Benchmark — standalone runner
- *
- * Traffic pattern: sequential (concurrency=1, one request at a time)
- * Request count: 60 total (20 per endpoint × 3 endpoints)
- * Concurrency: 1 (sequential)
- * Endpoints:
- *   GET /api/health
- *   GET /api/counter/:name
- *   GET /metrics
- *
- * Usage:
- *   BASE_URL=http://localhost:3000 bun scripts/benchmark.ts
- *   LATENCY_THRESHOLD_MS=500 BASE_URL=http://localhost:3000 bun scripts/benchmark.ts
- */
+// Usage: BASE_URL=http://localhost:3000 LATENCY_THRESHOLD_MS=200 bun scripts/benchmark.ts
 
 import { runBenchmark } from "../src/benchmark";
 

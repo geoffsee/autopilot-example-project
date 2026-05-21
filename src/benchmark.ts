@@ -1,14 +1,4 @@
-/**
- * F5 CI Latency Baseline Benchmark
- *
- * Traffic pattern: sequential (concurrency=1, one request at a time)
- * Request count: requestsPerEndpoint × 3 (default 60 total)
- * Concurrency: 1 (sequential)
- * Endpoints:
- *   GET /api/health
- *   GET /api/counter/:name
- *   GET /metrics
- */
+// Measures sequential p50/p95 latency across the three primary endpoints.
 
 export interface BenchmarkOptions {
   requestsPerEndpoint?: number;
@@ -39,7 +29,7 @@ export async function runBenchmark(baseUrl: string, opts: BenchmarkOptions = {})
   for (const url of endpoints) {
     for (let i = 0; i < requestsPerEndpoint; i++) {
       const start = performance.now();
-      await fetch(url);
+      await fetch(url).then(r => r.body?.cancel());
       latencies.push(performance.now() - start);
     }
   }

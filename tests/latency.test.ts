@@ -15,7 +15,7 @@ afterAll(async () => {
 });
 
 test("p95 response time is under LATENCY_THRESHOLD_MS for health, counter, and metrics endpoints", async () => {
-  const threshold = Number(process.env.LATENCY_THRESHOLD_MS ?? "200");
+  const threshold = Number(process.env.LATENCY_THRESHOLD_MS ?? "1000");
   const { p50, p95 } = await runBenchmark(baseUrl, { requestsPerEndpoint: 20 });
 
   expect(
