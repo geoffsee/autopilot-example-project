@@ -48,6 +48,19 @@ export function getNamedCounter(db: Database, name: string): { name: string; val
   return { name, value: row?.value ?? 0 };
 }
 
+export function getCountersByPrefix(
+  db: Database,
+  prefix: string
+): { prefix: string; total: number; counters: { name: string; value: number }[] } {
+  const rows = db
+    .query<{ name: string; value: number }, [string]>(
+      "SELECT name, value FROM counters WHERE name LIKE ? || '%'"
+    )
+    .all(prefix);
+  const total = rows.reduce((sum, r) => sum + r.value, 0);
+  return { prefix, total, counters: rows };
+}
+
 export function incrementNamedCounter(db: Database, name: string): { name: string; value: number } {
   db.run(`INSERT OR IGNORE INTO counters (name, value) VALUES (?, 0)`, [name]);
   const row = db.query<{ value: number }, [string]>(

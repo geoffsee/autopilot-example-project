@@ -1,7 +1,7 @@
 import { serve } from "bun";
 import { join } from "node:path";
 import index from "./index.html";
-import { createCounterDb, getCount, handleCounterPost, getNamedCounter, incrementNamedCounter } from "./counter";
+import { createCounterDb, getCount, handleCounterPost, getNamedCounter, incrementNamedCounter, getCountersByPrefix } from "./counter";
 import { logActivity, getRecentActivity } from "./activity";
 import { runMigrations } from "./migrate";
 import { handleHealthGet } from "./health";
@@ -54,6 +54,11 @@ export function createServer(port?: number) {
           trackRequest("/api/counter", "GET");
           const authErr = requireReadAuth(req);
           if (authErr) return authErr;
+          const url = new URL(req.url);
+          if (url.searchParams.has("prefix")) {
+            const prefix = url.searchParams.get("prefix") ?? "";
+            return Response.json(getCountersByPrefix(db, prefix));
+          }
           return Response.json({ count: getCount(db) });
         },
         async POST(req, server) {
