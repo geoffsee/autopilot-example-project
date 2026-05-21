@@ -1,12 +1,14 @@
 import { serve } from "bun";
 import { join } from "node:path";
 import index from "./index.html";
-import { createCounterDb, getCount, handleCounterPost } from "./counter";
+import { createCounterDb, getCount, handleCounterPost, getNamedCounter, incrementNamedCounter } from "./counter";
 import { logActivity, getRecentActivity } from "./activity";
 import { runMigrations } from "./migrate";
 import { handleHealthGet } from "./health";
+import { handleMetricsGet, trackRequest } from "./metrics";
 import { log } from "./logger";
 import { rateLimiter } from "./rate-limit";
+import { requireAuth } from "./auth";
 
 const db = createCounterDb();
 await runMigrations(db, join(import.meta.dir, "../migrations"));
@@ -17,30 +19,43 @@ export function createServer(port?: number) {
     routes: {
       "/*": index,
 
+      "/metrics": {
+        GET(_req) {
+          trackRequest("/metrics", "GET");
+          return handleMetricsGet(db);
+        },
+      },
+
       "/api/health": {
         GET(_req) {
+          trackRequest("/api/health", "GET");
           return handleHealthGet(db);
         },
       },
 
       "/api/hello": {
         async GET(_req) {
+          trackRequest("/api/hello", "GET");
           return Response.json({ message: "Hello, world!", method: "GET" });
         },
         async PUT(_req) {
+          trackRequest("/api/hello", "PUT");
           return Response.json({ message: "Hello, world!", method: "PUT" });
         },
       },
 
       "/api/hello/:name": async (req) => {
+        trackRequest("/api/hello/:name", req.method);
         return Response.json({ message: `Hello, ${req.params.name}!` });
       },
 
       "/api/counter": {
         GET(_req) {
+          trackRequest("/api/counter", "GET");
           return Response.json({ count: getCount(db) });
         },
         async POST(req, server) {
+          trackRequest("/api/counter", "POST");
           const ip = server.requestIP(req)?.address ?? "unknown";
           const limited = rateLimiter(ip);
           if (limited) return limited;
@@ -56,13 +71,34 @@ export function createServer(port?: number) {
 
       "/api/activity": {
         GET(_req) {
+          trackRequest("/api/activity", "GET");
           return Response.json({ entries: getRecentActivity(db) });
         },
       },
 
       "/api/counter/history": {
         GET(_req) {
+          trackRequest("/api/counter/history", "GET");
           return Response.json({ entries: getRecentActivity(db) });
+        },
+      },
+
+      "/api/counter/:name": {
+        GET(req) {
+          trackRequest("/api/counter/:name", "GET");
+          return Response.json(getNamedCounter(db, req.params.name));
+        },
+      },
+
+      "/api/counter/:name/increment": {
+        POST(req, server) {
+          trackRequest("/api/counter/:name/increment", "POST");
+          const authErr = requireAuth(req);
+          if (authErr) return authErr;
+          const ip = server.requestIP(req)?.address ?? "unknown";
+          const limited = rateLimiter(ip);
+          if (limited) return limited;
+          return Response.json(incrementNamedCounter(db, req.params.name));
         },
       },
 

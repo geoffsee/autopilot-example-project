@@ -34,6 +34,28 @@ export function getCounterValue(db: Database): number {
   return row?.value ?? 0;
 }
 
+export function setupNamedCounters(db: Database): void {
+  db.run(
+    `CREATE TABLE IF NOT EXISTS counters (name TEXT PRIMARY KEY, value INTEGER NOT NULL DEFAULT 0)`
+  );
+}
+
+export function getNamedCounter(db: Database, name: string): { name: string; value: number } {
+  db.run(`INSERT OR IGNORE INTO counters (name, value) VALUES (?, 0)`, [name]);
+  const row = db.query<{ value: number }, [string]>(
+    "SELECT value FROM counters WHERE name = ?"
+  ).get(name);
+  return { name, value: row?.value ?? 0 };
+}
+
+export function incrementNamedCounter(db: Database, name: string): { name: string; value: number } {
+  db.run(`INSERT OR IGNORE INTO counters (name, value) VALUES (?, 0)`, [name]);
+  const row = db.query<{ value: number }, [string]>(
+    "UPDATE counters SET value = value + 1 WHERE name = ? RETURNING value"
+  ).get(name);
+  return { name, value: row?.value ?? 0 };
+}
+
 export async function handleCounterPost(
   req: Request,
   db: Database
