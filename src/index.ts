@@ -9,11 +9,15 @@ import { handleMetricsGet, trackRequest } from "./metrics";
 import { log } from "./logger";
 import { rateLimiter } from "./rate-limit";
 import { requireAuth } from "./auth";
+import { deliverWebhook, registerWebhook, deregisterWebhook, getWebhookUrl } from "./webhook";
 
 const db = createCounterDb();
 await runMigrations(db, join(import.meta.dir, "../migrations"));
 
-export function createServer(port?: number) {
+type WebhookDeliveryFn = (url: string, payload: Record<string, unknown>) => Promise<void>;
+
+export function createServer(port?: number, opts: { webhookDelivery?: WebhookDeliveryFn } = {}) {
+  const webhookDeliveryFn: WebhookDeliveryFn = opts.webhookDelivery ?? deliverWebhook;
   return serve({
     port,
     routes: {
@@ -113,14 +117,61 @@ export function createServer(port?: number) {
       },
 
       "/api/counter/:name/increment": {
-        POST(req, server) {
+        async POST(req, server) {
           trackRequest("/api/counter/:name/increment", "POST");
           const authErr = requireAuth(req);
           if (authErr) return authErr;
           const ip = server.requestIP(req)?.address ?? "unknown";
           const limited = rateLimiter(ip);
           if (limited) return limited;
-          return Response.json(incrementNamedCounter(db, req.params.name));
+          const result = incrementNamedCounter(db, req.params.name);
+          const webhookUrl = getWebhookUrl(db, result.name);
+          if (webhookUrl) {
+            const payload = { name: result.name, value: result.value, timestamp: new Date().toISOString() };
+            webhookDeliveryFn(webhookUrl, payload).catch(err => {
+              log.error("webhook.delivery.unhandled", { error: String(err) });
+            });
+          }
+          return Response.json(result);
+        },
+      },
+
+      "/api/webhook/:name": {
+        async POST(req) {
+          trackRequest("/api/webhook/:name", "POST");
+          const authErr = requireAuth(req);
+          if (authErr) return authErr;
+          let body: unknown;
+          try {
+            body = await req.json();
+          } catch {
+            return Response.json({ error: "Invalid JSON" }, { status: 400 });
+          }
+          if (typeof body !== "object" || body === null || !("url" in body) || typeof (body as Record<string, unknown>).url !== "string") {
+            return Response.json({ error: "url is required" }, { status: 400 });
+          }
+          const url = (body as Record<string, unknown>).url as string;
+          try {
+            new URL(url);
+          } catch {
+            return Response.json({ error: "Invalid URL" }, { status: 400 });
+          }
+          const { name } = req.params;
+          registerWebhook(db, name, url);
+          log.info("webhook.registered", { counter: name, url });
+          return Response.json({ name, url }, { status: 201 });
+        },
+        DELETE(req) {
+          trackRequest("/api/webhook/:name", "DELETE");
+          const authErr = requireAuth(req);
+          if (authErr) return authErr;
+          const { name } = req.params;
+          const removed = deregisterWebhook(db, name);
+          if (!removed) {
+            return Response.json({ error: "Webhook not found" }, { status: 404 });
+          }
+          log.info("webhook.deregistered", { counter: name });
+          return Response.json({ name });
         },
       },
 
