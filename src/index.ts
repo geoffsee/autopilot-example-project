@@ -55,8 +55,8 @@ export function createServer(port?: number) {
           const authErr = requireReadAuth(req);
           if (authErr) return authErr;
           const url = new URL(req.url);
-          if (url.searchParams.has("prefix")) {
-            const prefix = url.searchParams.get("prefix") ?? "";
+          const prefix = url.searchParams.get("prefix");
+          if (prefix !== null) {
             return Response.json(getCountersByPrefix(db, prefix));
           }
           return Response.json({ count: getCount(db) });
