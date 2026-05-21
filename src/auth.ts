@@ -70,8 +70,6 @@ export function createRBAC(
   return { requireWrite, requireRead };
 }
 
-export const requireAuth = createAuth();
-
-const _rbac = createRBAC();
-export const requireWriteAuth = _rbac.requireWrite;
-export const requireReadAuth = _rbac.requireRead;
+const rbac = createRBAC();
+export const requireWriteAuth = rbac.requireWrite;
+export const requireReadAuth = rbac.requireRead;
