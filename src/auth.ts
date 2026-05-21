@@ -53,7 +53,6 @@ export function createRBAC(
     if (!writeToken) return null;
     const provided = extractBearer(req);
     if (provided === null) return unauthorized();
-    if (readToken && tokenMatches(provided, readToken)) return forbidden();
     if (!tokenMatches(provided, writeToken)) return forbidden();
     return null;
   }

@@ -140,3 +140,12 @@ test("RBAC requireWrite: wrong token returns 403", () => {
   const res = requireWrite(req);
   expect(res?.status).toBe(403);
 });
+
+test("RBAC same write/read token: requireWrite still allows write token", () => {
+  const { requireWrite } = createRBAC("shared-secret", "shared-secret");
+  const req = new Request("http://localhost/api/counter", {
+    method: "POST",
+    headers: { Authorization: "Bearer shared-secret" },
+  });
+  expect(requireWrite(req)).toBeNull();
+});
