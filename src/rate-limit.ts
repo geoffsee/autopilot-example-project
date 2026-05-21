@@ -3,7 +3,12 @@ interface WindowState {
   windowStart: number;
 }
 
-export function createRateLimiter(opts?: { max?: number; windowMs?: number }) {
+export type RateLimiterFn = {
+  (ip: string, now?: number): Response | null;
+  activeClients(): number;
+};
+
+export function createRateLimiter(opts?: { max?: number; windowMs?: number }): RateLimiterFn {
   const max = opts?.max ?? parseInt(process.env.RATE_LIMIT_MAX ?? "10", 10);
   const windowMs = opts?.windowMs ?? parseInt(process.env.RATE_LIMIT_WINDOW_MS ?? "10000", 10);
 
@@ -17,7 +22,7 @@ export function createRateLimiter(opts?: { max?: number; windowMs?: number }) {
     }
   }, windowMs).unref();
 
-  return function check(ip: string, now = Date.now()): Response | null {
+  const check = function(ip: string, now = Date.now()): Response | null {
     const state = store.get(ip);
 
     if (!state || now - state.windowStart >= windowMs) {
@@ -39,7 +44,11 @@ export function createRateLimiter(opts?: { max?: number; windowMs?: number }) {
 
     state.count++;
     return null;
-  };
+  } as RateLimiterFn;
+
+  check.activeClients = () => store.size;
+
+  return check;
 }
 
 export const rateLimiter = createRateLimiter();
