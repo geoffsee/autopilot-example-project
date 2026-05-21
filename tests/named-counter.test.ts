@@ -59,7 +59,8 @@ test("GET /api/counter/history still works after named-counter migration", async
   expect(Array.isArray(body.entries)).toBe(true);
 });
 
-test("POST /api/counter/:name/increment returns 401 without auth", async () => {
+test("POST /api/counter/:name/increment succeeds without auth when API_TOKEN is not configured", async () => {
+  // Auth is skipped when API_TOKEN env var is absent (open-by-default per C5 spec)
   const res = await fetch(`${server.url.origin}/api/counter/hits/increment`, { method: "POST" });
-  expect(res.status).toBe(401);
+  expect(res.status).toBe(200);
 });

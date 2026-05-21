@@ -56,6 +56,8 @@ export function createServer(port?: number) {
         },
         async POST(req, server) {
           trackRequest("/api/counter", "POST");
+          const authErr = requireAuth(req);
+          if (authErr) return authErr;
           const ip = server.requestIP(req)?.address ?? "unknown";
           const limited = rateLimiter(ip);
           if (limited) return limited;
