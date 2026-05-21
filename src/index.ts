@@ -9,7 +9,7 @@ import { handleMetricsGet, trackRequest } from "./metrics";
 import { log } from "./logger";
 import { rateLimiter } from "./rate-limit";
 import { requireAuth } from "./auth";
-import * as webhookMod from "./webhook";
+import { deliverWebhook } from "./webhook";
 
 const db = createCounterDb();
 await runMigrations(db, join(import.meta.dir, "../migrations"));
@@ -104,7 +104,7 @@ export function createServer(port?: number) {
           const result = incrementNamedCounter(db, req.params.name);
           const webhookUrl = process.env.WEBHOOK_URL;
           if (webhookUrl) {
-            void webhookMod.deliverWebhook(webhookUrl, {
+            void deliverWebhook(webhookUrl, {
               event: "counter.increment",
               name: result.name,
               value: result.value,

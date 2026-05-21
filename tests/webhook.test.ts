@@ -166,7 +166,6 @@ test("POST /api/counter/:name/increment succeeds even when WEBHOOK_URL is a bloc
 test("deliverWebhook via createWebhookDelivery (bypass validator) delivers to mock server", async () => {
   const before = received.length;
   await deliverForTest(mockUrl, { event: "counter.increment", name: "mock-test", value: 7 });
-  await Bun.sleep(10);
   expect(received.length).toBe(before + 1);
   expect(received[received.length - 1]!.body).toMatchObject({
     event: "counter.increment",

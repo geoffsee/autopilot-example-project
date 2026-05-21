@@ -51,6 +51,7 @@ export function createWebhookDelivery(validate: UrlValidator = isAllowedWebhookU
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(5000),
       });
       if (!res.ok) {
         log.error("webhook delivery failed", { url: webhookUrl, status: res.status });
