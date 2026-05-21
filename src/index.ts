@@ -7,7 +7,7 @@ import { runMigrations } from "./migrate";
 import { handleHealthGet } from "./health";
 import { handleMetricsGet, trackRequest } from "./metrics";
 import { log } from "./logger";
-import { rateLimiter } from "./rate-limit";
+import { createRateLimiter } from "./rate-limit";
 import { requireWriteAuth, requireReadAuth } from "./auth";
 import { writeAuditEntry, getAuditEntries } from "./audit";
 
@@ -15,6 +15,7 @@ const db = createCounterDb();
 await runMigrations(db, join(import.meta.dir, "../migrations"));
 
 export function createServer(port?: number) {
+  const rateLimiter = createRateLimiter();
   return serve({
     port,
     routes: {
@@ -124,6 +125,8 @@ export function createServer(port?: number) {
           const authErr = requireWriteAuth(req);
           if (authErr) return authErr;
           const ip = server.requestIP(req)?.address ?? "unknown";
+          const limited = rateLimiter(ip);
+          if (limited) return limited;
           const { name } = req.params;
           const result = resetNamedCounter(db, name);
           if (!result) {

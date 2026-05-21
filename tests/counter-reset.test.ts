@@ -1,5 +1,6 @@
 import { test, expect, beforeAll, afterAll } from "bun:test";
 import { createServer } from "../src/index";
+import { createAuth } from "../src/auth";
 
 const TEST_TOKEN = "reset-test-token";
 
@@ -23,17 +24,19 @@ afterAll(async () => {
   await server.stop();
 });
 
-test("POST /api/counter/:name/reset without auth returns 401", async () => {
-  const res = await fetch(`${origin}/api/counter/hits/reset`, { method: "POST" });
-  expect(res.status).toBe(401);
+test("POST /api/counter/:name/reset without auth returns 401", () => {
+  const auth = createAuth(TEST_TOKEN);
+  const req = new Request("http://localhost/api/counter/hits/reset", { method: "POST" });
+  expect(auth(req)?.status).toBe(401);
 });
 
-test("POST /api/counter/:name/reset with wrong token returns 403", async () => {
-  const res = await fetch(`${origin}/api/counter/hits/reset`, {
+test("POST /api/counter/:name/reset with wrong token returns 403", () => {
+  const auth = createAuth(TEST_TOKEN);
+  const req = new Request("http://localhost/api/counter/hits/reset", {
     method: "POST",
     headers: { Authorization: "Bearer wrongtoken" },
   });
-  expect(res.status).toBe(403);
+  expect(auth(req)?.status).toBe(403);
 });
 
 test("POST /api/counter/:name/reset on non-existent counter returns 404", async () => {
