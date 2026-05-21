@@ -1,40 +1,41 @@
-# ADR-002: Webhook SSRF Mitigation via URL Allowlist
+# ADR-002: Webhook SSRF Mitigation via DNS Resolution + Private IP Blocking
 
 Date: 2026-05-21
 
 ## Status
 
-Proposed
+Accepted
 
 ## Context
 
-The planned C6 webhook notification feature allows callers to register arbitrary URLs that the server will POST to on counter events. Accepting and resolving arbitrary URLs from user input is the canonical Server-Side Request Forgery (SSRF) vector: a malicious caller can point the webhook at internal services (metadata endpoints, databases, admin APIs) and use the server as a proxy.
+The C6 webhook notification feature allows callers to register arbitrary URLs that the server will POST to on counter events. Accepting and resolving arbitrary URLs from user input is the canonical Server-Side Request Forgery (SSRF) vector: a malicious caller can point the webhook at internal services (metadata endpoints, databases, admin APIs) and use the server as a proxy.
 
 Mitigation options considered:
 
 1. **No mitigation** — ship fast, add controls later; unacceptable given the straightforward exploit path.
-2. **DNS rebinding + IP block on each request** — resolve the URL, reject RFC-1918 / loopback / link-local addresses; harder to implement correctly (TOCTOU between resolve and connect) and can be bypassed with DNS rebinding attacks.
-3. **URL allowlist** — only URLs matching a pre-configured set of prefixes or domains are accepted; eliminates the SSRF surface by construction at the cost of operator configuration burden.
+2. **DNS resolution + IP block on each delivery** — resolve the URL before each outbound request, reject RFC-1918 / loopback / link-local addresses; provides broad coverage without operator configuration.
+3. **URL allowlist** — only URLs matching a pre-configured set of prefixes or domains are accepted; eliminates the SSRF surface by construction but requires operators to configure `WEBHOOK_ALLOW_ORIGINS` before webhooks are usable at all.
 4. **Egress firewall** — enforce at the network layer; effective but outside application control and not portable across environments.
 
 ## Decision
 
-Implement a URL allowlist for webhook endpoints.
+Resolve the destination IP on every webhook delivery and reject private address ranges.
 
-- A `WEBHOOK_ALLOW_ORIGINS` environment variable holds a comma-separated list of allowed URL prefixes (e.g., `https://hooks.example.com,https://alerts.myco.io`).
-- At registration time, reject any webhook URL whose origin is not in the allowlist.
-- If `WEBHOOK_ALLOW_ORIGINS` is not set, webhook registration is disabled entirely (fail-safe default).
-- Additionally, resolve the destination IP at registration time and reject RFC-1918, loopback (`127.0.0.0/8`), and link-local (`169.254.0.0/16`) ranges as a secondary defense.
+- Before each outbound POST, resolve the target hostname via DNS.
+- Reject addresses in RFC-1918 ranges (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16), loopback (`127.0.0.0/8`), and link-local (`169.254.0.0/16`).
+- Rejection applies on every delivery, not just at registration time, to defend against DNS rebinding attacks where a hostname initially resolves to a public IP but later resolves to an internal one.
+- No environment variable is required; the protection is always active.
+
+A stricter URL allowlist (option 3) remains a future hardening option for environments that need to constrain webhook destinations to a known set of domains.
 
 ## Consequences
 
 **Positive:**
-- SSRF surface is eliminated by construction; no valid registration path reaches internal addresses.
-- Fail-safe default: unconfigured environments cannot register webhooks at all.
-- Simple to audit: the allowlist is a single env var, visible in deployment configuration.
+- Works out of the box with no operator configuration.
+- Re-validating on each delivery closes the TOCTOU window for DNS rebinding.
+- Broad coverage: any private IP range is rejected, not just a hard-coded list of known internal services.
 
 **Negative:**
-- Operators must explicitly configure `WEBHOOK_ALLOW_ORIGINS` before webhooks are usable.
-- Does not protect against cases where an allowlisted domain is itself compromised or resolves to an internal IP after registration (mitigated by re-validating the destination IP on each delivery).
-
-This ADR will be updated to Accepted when C6 is implemented and the allowlist logic is in place.
+- A compromised public domain could still be used as a relay (the allowlist approach would not help here either, unless the domain itself were removed from the allowlist).
+- DNS resolution adds a small latency cost per delivery.
+- Does not prevent webhooks to arbitrary public internet destinations; rate limiting and authentication on the registration endpoint are the controls for that.
