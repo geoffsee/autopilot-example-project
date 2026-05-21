@@ -1,5 +1,7 @@
+import { timingSafeEqual } from "node:crypto";
+
 export function createAuth(token = process.env.API_TOKEN) {
-  const configuredToken = token || undefined;
+  const configuredToken = token;
 
   return function requireAuth(req: Request): Response | null {
     if (!configuredToken) return null;
@@ -11,7 +13,9 @@ export function createAuth(token = process.env.API_TOKEN) {
         headers: { "Content-Type": "application/json" },
       });
     }
-    if (header !== `Bearer ${configuredToken}`) {
+    const expected = Buffer.from(`Bearer ${configuredToken}`);
+    const actual = Buffer.from(header);
+    if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
       return new Response(JSON.stringify({ error: "Forbidden" }), {
         status: 403,
         headers: { "Content-Type": "application/json" },
