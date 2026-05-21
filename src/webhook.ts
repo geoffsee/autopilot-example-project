@@ -2,13 +2,14 @@ import { lookup } from "node:dns/promises";
 import { log } from "./logger";
 
 // RFC-1918, loopback, link-local, and unique-local ranges (IPv4 + IPv6).
+const OCT = "(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)";
 const PRIVATE_RANGES: RegExp[] = [
-  /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/,
-  /^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/,
-  /^192\.168\.\d{1,3}\.\d{1,3}$/,
-  /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/,
-  /^169\.254\.\d{1,3}\.\d{1,3}$/,
-  /^0\.\d{1,3}\.\d{1,3}\.\d{1,3}$/,
+  new RegExp(`^10\\.${OCT}\\.${OCT}\\.${OCT}$`),
+  new RegExp(`^172\\.(1[6-9]|2\\d|3[01])\\.${OCT}\\.${OCT}$`),
+  new RegExp(`^192\\.168\\.${OCT}\\.${OCT}$`),
+  new RegExp(`^127\\.${OCT}\\.${OCT}\\.${OCT}$`),
+  new RegExp(`^169\\.254\\.${OCT}\\.${OCT}$`),
+  new RegExp(`^0\\.${OCT}\\.${OCT}\\.${OCT}$`),
   /^::1$/,
   /^fe[89ab][0-9a-f]:/i,   // fe80::/10 link-local
   /^f[cd][0-9a-f]{2}:/i,   // fc00::/7 unique-local
@@ -52,6 +53,7 @@ export function createWebhookDelivery(validate: UrlValidator = isAllowedWebhookU
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
         signal: AbortSignal.timeout(5000),
+        redirect: "manual",   // prevent redirect-based SSRF bypass
       });
       if (!res.ok) {
         log.error("webhook delivery failed", { url: webhookUrl, status: res.status });
