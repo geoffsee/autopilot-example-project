@@ -22,7 +22,7 @@ export function createServer(port?: number) {
       "/metrics": {
         GET(_req) {
           trackRequest("/metrics", "GET");
-          return handleMetricsGet(db);
+          return handleMetricsGet(db, rateLimiter);
         },
       },
 

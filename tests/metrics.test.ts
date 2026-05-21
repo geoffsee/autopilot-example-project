@@ -2,6 +2,7 @@ import { test, expect, beforeEach, afterEach } from "bun:test";
 import { Database } from "bun:sqlite";
 import { setupNamedCounters, incrementNamedCounter } from "../src/counter";
 import { handleMetricsGet, trackRequest, resetRequestCounts } from "../src/metrics";
+import { createRateLimiter } from "../src/rate-limit";
 
 let db: Database;
 
@@ -70,4 +71,22 @@ test("process_uptime_seconds is a non-negative number that increases over time",
   expect(match2).not.toBeNull();
   const uptime2 = parseFloat(match2![1]);
   expect(uptime2).toBeGreaterThanOrEqual(uptime1);
+});
+
+test("rate_limit_active_clients gauge appears in metrics output", async () => {
+  const res = handleMetricsGet(db);
+  const text = await res.text();
+  expect(text).toContain("# HELP rate_limit_active_clients");
+  expect(text).toContain("# TYPE rate_limit_active_clients gauge");
+  expect(text).toMatch(/^rate_limit_active_clients \d+/m);
+});
+
+test("rate_limit_active_clients reflects current tracked client count", async () => {
+  const limiter = createRateLimiter({ max: 5, windowMs: 5000 });
+  limiter("1.2.3.4");
+  limiter("5.6.7.8");
+
+  const res = handleMetricsGet(db, limiter);
+  const text = await res.text();
+  expect(text).toContain("rate_limit_active_clients 2");
 });

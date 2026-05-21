@@ -3,7 +3,12 @@ interface WindowState {
   windowStart: number;
 }
 
-export function createRateLimiter(opts?: { max?: number; windowMs?: number }) {
+export type RateLimiterFn = {
+  (ip: string, now?: number): Response | null;
+  activeClients(): number;
+};
+
+export function createRateLimiter(opts?: { max?: number; windowMs?: number }): RateLimiterFn {
   const max = opts?.max ?? parseInt(process.env.RATE_LIMIT_MAX ?? "10", 10);
   const windowMs = opts?.windowMs ?? parseInt(process.env.RATE_LIMIT_WINDOW_MS ?? "10000", 10);
 
@@ -17,29 +22,34 @@ export function createRateLimiter(opts?: { max?: number; windowMs?: number }) {
     }
   }, windowMs).unref();
 
-  return function check(ip: string, now = Date.now()): Response | null {
-    const state = store.get(ip);
+  const check = Object.assign(
+    function(ip: string, now = Date.now()): Response | null {
+      const state = store.get(ip);
 
-    if (!state || now - state.windowStart >= windowMs) {
-      if (state) store.delete(ip);
-      store.set(ip, { count: 1, windowStart: now });
+      if (!state || now - state.windowStart >= windowMs) {
+        if (state) store.delete(ip);
+        store.set(ip, { count: 1, windowStart: now });
+        return null;
+      }
+
+      if (state.count >= max) {
+        const retryAfterSec = Math.ceil((state.windowStart + windowMs - now) / 1000);
+        return new Response(JSON.stringify({ error: "Too Many Requests" }), {
+          status: 429,
+          headers: {
+            "Content-Type": "application/json",
+            "Retry-After": String(retryAfterSec),
+          },
+        });
+      }
+
+      state.count++;
       return null;
-    }
+    },
+    { activeClients: () => store.size }
+  ) satisfies RateLimiterFn;
 
-    if (state.count >= max) {
-      const retryAfterSec = Math.ceil((state.windowStart + windowMs - now) / 1000);
-      return new Response(JSON.stringify({ error: "Too Many Requests" }), {
-        status: 429,
-        headers: {
-          "Content-Type": "application/json",
-          "Retry-After": String(retryAfterSec),
-        },
-      });
-    }
-
-    state.count++;
-    return null;
-  };
+  return check;
 }
 
 export const rateLimiter = createRateLimiter();
