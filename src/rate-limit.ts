@@ -22,31 +22,32 @@ export function createRateLimiter(opts?: { max?: number; windowMs?: number }): R
     }
   }, windowMs).unref();
 
-  const check = function(ip: string, now = Date.now()): Response | null {
-    const state = store.get(ip);
+  const check = Object.assign(
+    function(ip: string, now = Date.now()): Response | null {
+      const state = store.get(ip);
 
-    if (!state || now - state.windowStart >= windowMs) {
-      if (state) store.delete(ip);
-      store.set(ip, { count: 1, windowStart: now });
+      if (!state || now - state.windowStart >= windowMs) {
+        if (state) store.delete(ip);
+        store.set(ip, { count: 1, windowStart: now });
+        return null;
+      }
+
+      if (state.count >= max) {
+        const retryAfterSec = Math.ceil((state.windowStart + windowMs - now) / 1000);
+        return new Response(JSON.stringify({ error: "Too Many Requests" }), {
+          status: 429,
+          headers: {
+            "Content-Type": "application/json",
+            "Retry-After": String(retryAfterSec),
+          },
+        });
+      }
+
+      state.count++;
       return null;
-    }
-
-    if (state.count >= max) {
-      const retryAfterSec = Math.ceil((state.windowStart + windowMs - now) / 1000);
-      return new Response(JSON.stringify({ error: "Too Many Requests" }), {
-        status: 429,
-        headers: {
-          "Content-Type": "application/json",
-          "Retry-After": String(retryAfterSec),
-        },
-      });
-    }
-
-    state.count++;
-    return null;
-  } as RateLimiterFn;
-
-  check.activeClients = () => store.size;
+    },
+    { activeClients: () => store.size }
+  ) satisfies RateLimiterFn;
 
   return check;
 }
