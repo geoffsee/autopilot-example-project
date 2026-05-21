@@ -80,13 +80,10 @@ export async function deliverWebhook(
     return;
   }
 
-  // Connect directly to the pre-checked IP to prevent DNS rebinding (TOCTOU).
-  const fetchUrl = new URL(url);
-  fetchUrl.hostname = ip;
   try {
-    await fetch(fetchUrl.toString(), {
+    await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Host: hostname },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(5_000),
     });
