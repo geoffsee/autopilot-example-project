@@ -18,7 +18,7 @@ import { log } from "./logger";
 import { rateLimiter } from "./rate-limit";
 import { createRBAC } from "./auth";
 import { writeAuditEntry, getAuditEntries } from "./audit";
-import { deliverWebhook, registerWebhook, deregisterWebhook, getWebhookUrl, listWebhooks } from "./webhook";
+import { deliverWebhook, registerWebhook, deregisterWebhook, getWebhookUrl, listWebhooks, enqueueWebhookDelivery, getWebhookDeliveries, processWebhookRetries } from "./webhook";
 
 const db = createCounterDb();
 await runMigrations(db, join(import.meta.dir, "../migrations"));
@@ -174,8 +174,9 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
           const webhookUrl = getWebhookUrl(db, result.name);
           if (webhookUrl) {
             const payload = { name: result.name, value: result.value, timestamp: new Date().toISOString() };
-            webhookDeliveryFn(webhookUrl, payload).catch(err => {
-              log.error("webhook.delivery.unhandled", { error: String(err) });
+            enqueueWebhookDelivery(db, result.name, webhookUrl, payload);
+            processWebhookRetries(db, webhookDeliveryFn).catch(err => {
+              log.error("webhook.retry.sweep_error", { error: String(err) });
             });
           }
           return Response.json({ name: result.name, value: result.value });
@@ -188,6 +189,32 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
           const authErr = requireReadAuth(req);
           if (authErr) return authErr;
           return Response.json({ webhooks: listWebhooks(db) });
+        },
+      },
+
+      "/api/webhooks/:id/deliveries": {
+        GET(req) {
+          trackRequest("/api/webhooks/:id/deliveries", "GET");
+          const authErr = requireReadAuth(req);
+          if (authErr) return authErr;
+          const { id } = req.params;
+          const webhookUrl = getWebhookUrl(db, id);
+          if (webhookUrl === null) {
+            return Response.json({ error: "Webhook not found" }, { status: 404 });
+          }
+          const rows = getWebhookDeliveries(db, id);
+          const deliveries = rows.map(r => ({
+            id: r.id,
+            webhook_id: r.webhook_id,
+            url: r.url,
+            payload: JSON.parse(r.payload) as Record<string, unknown>,
+            status: r.status,
+            attempt_count: r.attempt_count,
+            next_retry_at: r.next_retry_at,
+            created_at: r.created_at,
+            last_attempted_at: r.last_attempted_at,
+          }));
+          return Response.json({ deliveries });
         },
       },
 
@@ -260,4 +287,10 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
 if (import.meta.main) {
   const server = createServer();
   log.info("server started", { url: server.url.href });
+
+  setInterval(() => {
+    processWebhookRetries(db, deliverWebhook).catch(err => {
+      log.error("webhook.retry.background_error", { error: String(err) });
+    });
+  }, 1000);
 }

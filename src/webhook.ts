@@ -2,6 +2,94 @@ import { Database } from "bun:sqlite";
 import { lookup } from "node:dns/promises";
 import { log } from "./logger";
 
+// 1 initial attempt + 5 retries = 6 total; delays between consecutive failures
+const MAX_ATTEMPTS = 6;
+const BACKOFF_DELAYS_MS = [1000, 2000, 4000, 8000, 16000] as const;
+
+export interface DeliveryRow {
+  id: number;
+  webhook_id: string;
+  url: string;
+  payload: string;
+  status: string;
+  attempt_count: number;
+  next_retry_at: string | null;
+  created_at: string;
+  last_attempted_at: string | null;
+}
+
+export function enqueueWebhookDelivery(
+  db: Database,
+  webhookId: string,
+  url: string,
+  payload: Record<string, unknown>
+): void {
+  const now = new Date().toISOString();
+  db.run(
+    `INSERT INTO _webhook_deliveries (webhook_id, url, payload, status, attempt_count, next_retry_at, created_at)
+     VALUES (?, ?, ?, 'pending', 0, ?, ?)`,
+    [webhookId, url, JSON.stringify(payload), now, now]
+  );
+}
+
+export function getWebhookDeliveries(db: Database, webhookId: string): DeliveryRow[] {
+  return db
+    .query<DeliveryRow, [string]>(
+      `SELECT id, webhook_id, url, payload, status, attempt_count, next_retry_at, created_at, last_attempted_at
+       FROM _webhook_deliveries WHERE webhook_id = ? ORDER BY created_at DESC`
+    )
+    .all(webhookId);
+}
+
+export async function processWebhookRetries(
+  db: Database,
+  deliveryFn: (url: string, payload: Record<string, unknown>) => Promise<void>
+): Promise<void> {
+  const now = new Date().toISOString();
+  const pending = db
+    .query<DeliveryRow, [string]>(
+      `SELECT id, webhook_id, url, payload, status, attempt_count, next_retry_at, created_at, last_attempted_at
+       FROM _webhook_deliveries
+       WHERE status = 'pending' AND next_retry_at <= ?
+       ORDER BY next_retry_at ASC`
+    )
+    .all(now);
+
+  for (const delivery of pending) {
+    const newAttemptCount = delivery.attempt_count + 1;
+    const attemptedAt = new Date().toISOString();
+    let succeeded = false;
+    try {
+      await deliveryFn(delivery.url, JSON.parse(delivery.payload) as Record<string, unknown>);
+      succeeded = true;
+    } catch {
+      // handled below
+    }
+
+    if (succeeded) {
+      db.run(
+        `UPDATE _webhook_deliveries SET status = 'success', attempt_count = ?, last_attempted_at = ?, next_retry_at = NULL WHERE id = ?`,
+        [newAttemptCount, attemptedAt, delivery.id]
+      );
+      log.info("webhook.delivery.success", { webhook_id: delivery.webhook_id, attempt: newAttemptCount });
+    } else if (newAttemptCount >= MAX_ATTEMPTS) {
+      db.run(
+        `UPDATE _webhook_deliveries SET status = 'failed', attempt_count = ?, last_attempted_at = ?, next_retry_at = NULL WHERE id = ?`,
+        [newAttemptCount, attemptedAt, delivery.id]
+      );
+      log.error("webhook.delivery.exhausted", { webhook_id: delivery.webhook_id, attempts: newAttemptCount });
+    } else {
+      const delayMs = BACKOFF_DELAYS_MS[newAttemptCount - 1]!;
+      const nextRetry = new Date(Date.now() + delayMs).toISOString();
+      db.run(
+        `UPDATE _webhook_deliveries SET attempt_count = ?, last_attempted_at = ?, next_retry_at = ? WHERE id = ?`,
+        [newAttemptCount, attemptedAt, nextRetry, delivery.id]
+      );
+      log.warn("webhook.delivery.retry_scheduled", { webhook_id: delivery.webhook_id, attempt: newAttemptCount, next_retry: nextRetry });
+    }
+  }
+}
+
 export function isPrivateIp(ip: string): boolean {
   // IPv6 loopback / link-local / ULA
   if (ip === "::1") return true;
