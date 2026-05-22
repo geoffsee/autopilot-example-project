@@ -48,6 +48,19 @@ export function getNamedCounter(db: Database, name: string): { name: string; val
   return { name, value: row?.value ?? 0 };
 }
 
+export function getCountersByPrefix(
+  db: Database,
+  prefix: string
+): { prefix: string; total: number; counters: { name: string; value: number }[] } {
+  const rows = db
+    .query<{ name: string; value: number }, [string, string]>(
+      "SELECT name, value FROM counters WHERE name >= ? AND name < ?"
+    )
+    .all(prefix, prefix + "\xff");
+  const total = rows.reduce((sum, r) => sum + r.value, 0);
+  return { prefix, total, counters: rows };
+}
+
 export function resetNamedCounter(
   db: Database,
   name: string
@@ -73,7 +86,6 @@ export function incrementNamedCounterTracked(
   name: string
 ): { name: string; value: number; oldValue: number } {
   db.run(`INSERT OR IGNORE INTO counters (name, value) VALUES (?, 0)`, [name]);
-  // RETURNING value is the post-update value; value - 1 is the pre-update value
   const row = db.query<{ value: number; old_value: number }, [string]>(
     "UPDATE counters SET value = value + 1 WHERE name = ? RETURNING value, value - 1 AS old_value"
   ).get(name);
@@ -133,5 +145,9 @@ export async function handleCounterPost(
     .query("UPDATE counter SET value = value + ? WHERE id = 1 RETURNING value, value - ? AS old_value")
     .get(increment, increment) as { value: number; old_value: number } | null;
   if (!row) return { response: Response.json({ error: "Counter not found" }, { status: 500 }) };
-  return { response: Response.json({ count: row.value }), count: row.value, oldCount: row.old_value };
+  return {
+    response: Response.json({ count: row.value }),
+    count: row.value,
+    oldCount: row.old_value,
+  };
 }

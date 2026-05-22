@@ -1,13 +1,21 @@
 import { serve } from "bun";
 import { join } from "node:path";
 import index from "./index.html";
-import { createCounterDb, getCount, handleCounterPost, getNamedCounter, incrementNamedCounterTracked, resetNamedCounter } from "./counter";
+import {
+  createCounterDb,
+  getCount,
+  handleCounterPost,
+  getNamedCounter,
+  incrementNamedCounterTracked,
+  getCountersByPrefix,
+  resetNamedCounter,
+} from "./counter";
 import { logActivity, getRecentActivity } from "./activity";
 import { runMigrations } from "./migrate";
 import { handleHealthGet } from "./health";
 import { handleMetricsGet, trackRequest } from "./metrics";
 import { log } from "./logger";
-import { createRateLimiter } from "./rate-limit";
+import { rateLimiter } from "./rate-limit";
 import { requireWriteAuth, requireReadAuth } from "./auth";
 import { writeAuditEntry, getAuditEntries } from "./audit";
 
@@ -15,7 +23,6 @@ const db = createCounterDb();
 await runMigrations(db, join(import.meta.dir, "../migrations"));
 
 export function createServer(port?: number) {
-  const rateLimiter = createRateLimiter();
   return serve({
     port,
     routes: {
@@ -56,6 +63,11 @@ export function createServer(port?: number) {
           trackRequest("/api/counter", "GET");
           const authErr = requireReadAuth(req);
           if (authErr) return authErr;
+          const url = new URL(req.url);
+          const prefix = url.searchParams.get("prefix");
+          if (prefix !== null) {
+            return Response.json(getCountersByPrefix(db, prefix));
+          }
           return Response.json({ count: getCount(db) });
         },
         async POST(req, server) {

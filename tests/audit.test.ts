@@ -34,8 +34,8 @@ test("getAuditEntries returns entries most-recent first", () => {
   writeAuditEntry(db, "api", "hits", 2, 3);
   const entries = getAuditEntries(db, {});
   expect(entries.length).toBe(3);
-  expect(entries[0].new_value).toBe(3);
-  expect(entries[2].new_value).toBe(1);
+  expect(entries[0]!.new_value).toBe(3);
+  expect(entries[2]!.new_value).toBe(1);
 });
 
 test("getAuditEntries filters by counter_name", () => {
@@ -93,9 +93,10 @@ test("audit row appears after named counter increment", async () => {
     entries: Array<{ counter_name: string; old_value: number; new_value: number }>;
   };
   expect(body.entries.length).toBe(1);
-  expect(body.entries[0].counter_name).toBe(name);
-  expect(body.entries[0].old_value).toBe(0);
-  expect(body.entries[0].new_value).toBe(1);
+  const row = body.entries[0]!;
+  expect(row.counter_name).toBe(name);
+  expect(row.old_value).toBe(0);
+  expect(row.new_value).toBe(1);
 });
 
 test("audit row appears after named counter reset (C7)", async () => {
@@ -112,8 +113,8 @@ test("audit row appears after named counter reset (C7)", async () => {
   // 2 increments + 1 reset
   expect(body.entries.length).toBe(3);
   // Most recent is reset (new_value = 0)
-  expect(body.entries[0].new_value).toBe(0);
-  expect(body.entries[0].old_value).toBe(2);
+  expect(body.entries[0]!.new_value).toBe(0);
+  expect(body.entries[0]!.old_value).toBe(2);
 });
 
 test("GET /api/audit?counter=:name filters by counter name", async () => {

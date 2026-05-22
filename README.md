@@ -16,6 +16,15 @@ The autopilot action runs everything inline — no dispatched follow-up workflow
 3. Settings → Actions → General → enable *Read and write permissions* and *Allow GitHub Actions to create and approve pull requests*.
 4. Open a sprint issue with the `sprint` label to kick off the work-dispatch route, or leave it empty and the factory cycle will seed ideas on the next heartbeat.
 
+## Authentication / RBAC
+
+Access is controlled via environment variables:
+
+- `API_TOKEN` — write access (`POST /api/counter`, `POST /api/counter/:name/increment`, `POST /api/counter/:name/reset`)
+- `READ_TOKEN` — read access (`GET /api/counter`, `/api/counter/history`, `/api/activity`, `/api/counter/:name`)
+
+Set both to require auth on all endpoints; omit `READ_TOKEN` to leave GET endpoints open.
+
 ## Architecture Decision Records
 
 Key design decisions are documented in [`adr/`](adr/README.md).

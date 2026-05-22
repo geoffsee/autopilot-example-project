@@ -21,28 +21,9 @@ function extractBearer(req: Request): string | null {
 }
 
 function tokenMatches(provided: string, expected: string): boolean {
-  const a = Buffer.from(expected);
-  const b = Buffer.from(provided);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
-
-export function createAuth(token = process.env.API_TOKEN) {
-  const configuredToken = token;
-
-  return function requireAuth(req: Request): Response | null {
-    if (!configuredToken) return null;
-
-    const header = req.headers.get("authorization") ?? "";
-    if (!header.startsWith("Bearer ")) {
-      return unauthorized();
-    }
-    const expected = Buffer.from(`Bearer ${configuredToken}`);
-    const actual = Buffer.from(header);
-    if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
-      return forbidden();
-    }
-    return null;
-  };
+  const expectedBuf = Buffer.from(expected);
+  const providedBuf = Buffer.from(provided);
+  return expectedBuf.length === providedBuf.length && timingSafeEqual(expectedBuf, providedBuf);
 }
 
 export function createRBAC(
@@ -53,7 +34,6 @@ export function createRBAC(
     if (!writeToken) return null;
     const provided = extractBearer(req);
     if (provided === null) return unauthorized();
-    if (readToken && tokenMatches(provided, readToken)) return forbidden();
     if (!tokenMatches(provided, writeToken)) return forbidden();
     return null;
   }
@@ -70,15 +50,8 @@ export function createRBAC(
   return { requireWrite, requireRead };
 }
 
-// Tokens are captured once at module load. Tests that need different token values
-// must set process.env vars before this module is first imported (use a dynamic
-// import inside beforeAll/beforeEach, not a top-level static import).
-const _rbac = createRBAC();
-
-export function requireWriteAuth(req: Request): Response | null {
-  return _rbac.requireWrite(req);
-}
-
-export function requireReadAuth(req: Request): Response | null {
-  return _rbac.requireRead(req);
-}
+// Tokens are read once at import time; use createRBAC(token, ...) directly in tests
+// that need to control tokens without relying on process.env mutation after import.
+const rbac = createRBAC();
+export const requireWriteAuth = rbac.requireWrite;
+export const requireReadAuth = rbac.requireRead;
