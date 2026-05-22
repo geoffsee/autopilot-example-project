@@ -60,7 +60,7 @@ test("process_uptime_seconds is a non-negative number that increases over time",
   const text1 = await res1.text();
   const match1 = text1.match(/^process_uptime_seconds (\d+\.?\d*)/m);
   expect(match1).not.toBeNull();
-  const uptime1 = parseFloat(match1![1]);
+  const uptime1 = parseFloat(match1![1]!);
   expect(uptime1).toBeGreaterThanOrEqual(0);
 
   await Bun.sleep(20);
@@ -69,7 +69,7 @@ test("process_uptime_seconds is a non-negative number that increases over time",
   const text2 = await res2.text();
   const match2 = text2.match(/^process_uptime_seconds (\d+\.?\d*)/m);
   expect(match2).not.toBeNull();
-  const uptime2 = parseFloat(match2![1]);
+  const uptime2 = parseFloat(match2![1]!);
   expect(uptime2).toBeGreaterThanOrEqual(uptime1);
 });
 

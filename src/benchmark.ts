@@ -13,7 +13,7 @@ export interface BenchmarkResult {
 
 function percentile(sorted: number[], p: number): number {
   const idx = Math.ceil((p / 100) * sorted.length) - 1;
-  return sorted[Math.max(0, idx)];
+  return sorted[Math.max(0, idx)]!;
 }
 
 export async function runBenchmark(baseUrl: string, opts: BenchmarkOptions = {}): Promise<BenchmarkResult> {
@@ -38,7 +38,7 @@ export async function runBenchmark(baseUrl: string, opts: BenchmarkOptions = {})
   return {
     p50: percentile(sorted, 50),
     p95: percentile(sorted, 95),
-    min: sorted[0],
-    max: sorted[sorted.length - 1],
+    min: sorted[0]!,
+    max: sorted[sorted.length - 1]!,
   };
 }
