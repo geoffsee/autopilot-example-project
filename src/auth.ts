@@ -21,9 +21,9 @@ function extractBearer(req: Request): string | null {
 }
 
 function tokenMatches(provided: string, expected: string): boolean {
-  const a = Buffer.from(expected);
-  const b = Buffer.from(provided);
-  return a.length === b.length && timingSafeEqual(a, b);
+  const expectedBuf = Buffer.from(expected);
+  const providedBuf = Buffer.from(provided);
+  return expectedBuf.length === providedBuf.length && timingSafeEqual(expectedBuf, providedBuf);
 }
 
 export function createRBAC(
