@@ -1,7 +1,15 @@
 import { serve } from "bun";
 import { join } from "node:path";
 import index from "./index.html";
-import { createCounterDb, getCount, handleCounterPost, getNamedCounter, incrementNamedCounter, getCountersByPrefix, resetNamedCounter } from "./counter";
+import {
+  createCounterDb,
+  getCount,
+  handleCounterPost,
+  getNamedCounter,
+  incrementNamedCounterTracked,
+  getCountersByPrefix,
+  resetNamedCounter,
+} from "./counter";
 import { logActivity, getRecentActivity } from "./activity";
 import { runMigrations } from "./migrate";
 import { handleHealthGet } from "./health";
@@ -9,6 +17,7 @@ import { handleMetricsGet, trackRequest } from "./metrics";
 import { log } from "./logger";
 import { rateLimiter } from "./rate-limit";
 import { createRBAC } from "./auth";
+import { writeAuditEntry, getAuditEntries } from "./audit";
 import { deliverWebhook, registerWebhook, deregisterWebhook, getWebhookUrl } from "./webhook";
 
 const db = createCounterDb();
@@ -73,8 +82,9 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
           const ip = server.requestIP(req)?.address ?? "unknown";
           const limited = rateLimiter(ip);
           if (limited) return limited;
-          const { response, count } = await handleCounterPost(req, db);
-          if (response.ok && typeof count === "number") {
+          const { response, count, oldCount } = await handleCounterPost(req, db);
+          if (response.ok && typeof count === "number" && typeof oldCount === "number") {
+            writeAuditEntry(db, ip, "counter", oldCount, count);
             server.publish("counter", JSON.stringify({ type: "counter", count }));
             const entry = logActivity(db, "counter.increment");
             server.publish("activity", JSON.stringify({ type: "activity", entry }));
@@ -101,6 +111,23 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
         },
       },
 
+      "/api/audit": {
+        GET(req) {
+          trackRequest("/api/audit", "GET");
+          const authErr = requireReadAuth(req);
+          if (authErr) return authErr;
+          const url = new URL(req.url);
+          const counter = url.searchParams.get("counter") ?? undefined;
+          const limitRaw = parseInt(url.searchParams.get("limit") ?? "", 10);
+          const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 1000) : 50;
+          const offsetRaw = parseInt(url.searchParams.get("offset") ?? "", 10);
+          const offset = Number.isFinite(offsetRaw) && offsetRaw >= 0 ? offsetRaw : 0;
+          return Response.json({
+            entries: getAuditEntries(db, { counter, limit, offset }),
+          });
+        },
+      },
+
       "/api/counter/:name": {
         GET(req) {
           trackRequest("/api/counter/:name", "GET");
@@ -123,8 +150,9 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
           if (!result) {
             return Response.json({ error: "Counter not found" }, { status: 404 });
           }
+          writeAuditEntry(db, ip, name, result.oldValue, result.value);
           log.info("counter.reset", {
-            actor: server.requestIP(req)?.address ?? "unknown",
+            actor: ip,
             counter: name,
             old_value: result.oldValue,
             timestamp: new Date().toISOString(),
@@ -141,7 +169,8 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
           const ip = server.requestIP(req)?.address ?? "unknown";
           const limited = rateLimiter(ip);
           if (limited) return limited;
-          const result = incrementNamedCounter(db, req.params.name);
+          const result = incrementNamedCounterTracked(db, req.params.name);
+          writeAuditEntry(db, ip, req.params.name, result.oldValue, result.value);
           const webhookUrl = getWebhookUrl(db, result.name);
           if (webhookUrl) {
             const payload = { name: result.name, value: result.value, timestamp: new Date().toISOString() };
@@ -149,7 +178,7 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
               log.error("webhook.delivery.unhandled", { error: String(err) });
             });
           }
-          return Response.json(result);
+          return Response.json({ name: result.name, value: result.value });
         },
       },
 
