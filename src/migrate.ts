@@ -27,7 +27,8 @@ export async function runMigrations(db: Database, migrationsDir: string): Promis
     .sort();
 
   const applyMigration = db.transaction((file: string, sql: string) => {
-    db.exec(sql);
+    const stripped = sql.replace(/--[^\n]*/g, "").replace(/\/\*[\s\S]*?\*\//g, "").trim();
+    if (stripped) db.exec(sql);
     db.run("INSERT INTO _migrations (filename, applied_at) VALUES (?, ?)", [
       file,
       new Date().toISOString(),

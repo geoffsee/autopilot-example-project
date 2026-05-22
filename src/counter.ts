@@ -48,6 +48,19 @@ export function getNamedCounter(db: Database, name: string): { name: string; val
   return { name, value: row?.value ?? 0 };
 }
 
+export function getCountersByPrefix(
+  db: Database,
+  prefix: string
+): { prefix: string; total: number; counters: { name: string; value: number }[] } {
+  const rows = db
+    .query<{ name: string; value: number }, [string, string]>(
+      "SELECT name, value FROM counters WHERE name >= ? AND name < ?"
+    )
+    .all(prefix, prefix + "\xff");
+  const total = rows.reduce((sum, r) => sum + r.value, 0);
+  return { prefix, total, counters: rows };
+}
+
 export function resetNamedCounter(
   db: Database,
   name: string
