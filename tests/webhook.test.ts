@@ -9,7 +9,6 @@ import {
   deregisterWebhook,
   getWebhookUrl,
 } from "../src/webhook";
-import { setupNamedCounters } from "../src/counter";
 import { runMigrations } from "../src/migrate";
 
 const TEST_TOKEN = "webhook-test-token";
