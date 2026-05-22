@@ -61,6 +61,18 @@ export function getCountersByPrefix(
   return { prefix, total, counters: rows };
 }
 
+export function resetNamedCounter(
+  db: Database,
+  name: string
+): { name: string; value: number; oldValue: number } | null {
+  const existing = db.query<{ value: number }, [string]>(
+    "SELECT value FROM counters WHERE name = ?"
+  ).get(name);
+  if (!existing) return null;
+  db.run("UPDATE counters SET value = 0 WHERE name = ?", [name]);
+  return { name, value: 0, oldValue: existing.value };
+}
+
 export function incrementNamedCounter(db: Database, name: string): { name: string; value: number } {
   db.run(`INSERT OR IGNORE INTO counters (name, value) VALUES (?, 0)`, [name]);
   const row = db.query<{ value: number }, [string]>(

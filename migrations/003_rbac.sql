@@ -1,4 +1,0 @@
--- RBAC is enforced at runtime via environment variables:
---   API_TOKEN  → write access (POST /api/counter, POST /api/counter/:name/increment)
---   READ_TOKEN → read access  (GET  /api/counter, /api/counter/history, /api/activity, /api/counter/:name)
--- Set both to require auth on all endpoints; omit READ_TOKEN to leave GET endpoints open.
