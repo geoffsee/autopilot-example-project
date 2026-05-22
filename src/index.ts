@@ -65,9 +65,8 @@ export function createServer(port?: number) {
           const ip = server.requestIP(req)?.address ?? "unknown";
           const limited = rateLimiter(ip);
           if (limited) return limited;
-          const oldCount = getCount(db);
-          const { response, count } = await handleCounterPost(req, db);
-          if (response.ok && typeof count === "number") {
+          const { response, count, oldCount } = await handleCounterPost(req, db);
+          if (response.ok && typeof count === "number" && typeof oldCount === "number") {
             writeAuditEntry(db, ip, "counter", oldCount, count);
             server.publish("counter", JSON.stringify({ type: "counter", count }));
             const entry = logActivity(db, "counter.increment");

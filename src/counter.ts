@@ -83,7 +83,7 @@ export function incrementNamedCounterTracked(
 export async function handleCounterPost(
   req: Request,
   db: Database
-): Promise<{ response: Response; count?: number }> {
+): Promise<{ response: Response; count?: number; oldCount?: number }> {
   const text = await req.text();
   let increment = 1;
 
@@ -130,8 +130,8 @@ export async function handleCounterPost(
   }
 
   const row = db
-    .query("UPDATE counter SET value = value + ? WHERE id = 1 RETURNING value")
-    .get(increment) as { value: number } | null;
+    .query("UPDATE counter SET value = value + ? WHERE id = 1 RETURNING value, value - ? AS old_value")
+    .get(increment, increment) as { value: number; old_value: number } | null;
   if (!row) return { response: Response.json({ error: "Counter not found" }, { status: 500 }) };
-  return { response: Response.json({ count: row.value }), count: row.value };
+  return { response: Response.json({ count: row.value }), count: row.value, oldCount: row.old_value };
 }

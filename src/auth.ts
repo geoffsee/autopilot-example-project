@@ -70,6 +70,9 @@ export function createRBAC(
   return { requireWrite, requireRead };
 }
 
+// Tokens are captured once at module load. Tests that need different token values
+// must set process.env vars before this module is first imported (use a dynamic
+// import inside beforeAll/beforeEach, not a top-level static import).
 const _rbac = createRBAC();
 
 export function requireWriteAuth(req: Request): Response | null {
