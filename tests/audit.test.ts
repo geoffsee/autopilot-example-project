@@ -77,8 +77,9 @@ afterAll(async () => {
   await server.stop();
 });
 
-test("GET /api/audit returns { entries: [] } initially", async () => {
-  const res = await fetch(`${baseUrl}/api/audit`);
+test("GET /api/audit returns { entries: [] } for a fresh counter", async () => {
+  const freshName = `audit-init-${Date.now()}`;
+  const res = await fetch(`${baseUrl}/api/audit?counter=${freshName}`);
   expect(res.status).toBe(200);
   const body = (await res.json()) as { entries: unknown[] };
   expect(Array.isArray(body.entries)).toBe(true);
