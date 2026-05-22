@@ -8,7 +8,7 @@ import { handleHealthGet } from "./health";
 import { handleMetricsGet, trackRequest } from "./metrics";
 import { log } from "./logger";
 import { rateLimiter } from "./rate-limit";
-import { requireWriteAuth, requireReadAuth } from "./auth";
+import { createRBAC } from "./auth";
 import { deliverWebhook, registerWebhook, deregisterWebhook, getWebhookUrl } from "./webhook";
 
 const db = createCounterDb();
@@ -18,6 +18,7 @@ type WebhookDeliveryFn = (url: string, payload: Record<string, unknown>) => Prom
 
 export function createServer(port?: number, opts: { webhookDelivery?: WebhookDeliveryFn } = {}) {
   const webhookDeliveryFn: WebhookDeliveryFn = opts.webhookDelivery ?? deliverWebhook;
+  const { requireWrite: requireWriteAuth, requireRead: requireReadAuth } = createRBAC();
   return serve({
     port,
     routes: {
@@ -109,6 +110,9 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
           trackRequest("/api/counter/:name/reset", "POST");
           const authErr = requireWriteAuth(req);
           if (authErr) return authErr;
+          const ip = server.requestIP(req)?.address ?? "unknown";
+          const limited = rateLimiter(ip);
+          if (limited) return limited;
           const { name } = req.params;
           const result = resetNamedCounter(db, name);
           if (!result) {
