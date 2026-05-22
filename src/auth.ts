@@ -25,7 +25,6 @@ export function createAuth(token = process.env.API_TOKEN) {
   };
 }
 
-const _auth = createAuth();
 export function requireAuth(req: Request): Response | null {
-  return _auth(req);
+  return createAuth(process.env.API_TOKEN)(req);
 }
