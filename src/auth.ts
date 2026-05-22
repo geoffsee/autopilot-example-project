@@ -26,25 +26,6 @@ function tokenMatches(provided: string, expected: string): boolean {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-function createAuth(token = process.env.API_TOKEN) {
-  const configuredToken = token;
-
-  return function requireAuth(req: Request): Response | null {
-    if (!configuredToken) return null;
-
-    const header = req.headers.get("authorization") ?? "";
-    if (!header.startsWith("Bearer ")) {
-      return unauthorized();
-    }
-    const expected = Buffer.from(`Bearer ${configuredToken}`);
-    const actual = Buffer.from(header);
-    if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
-      return forbidden();
-    }
-    return null;
-  };
-}
-
 export function createRBAC(
   writeToken = process.env.API_TOKEN,
   readToken = process.env.READ_TOKEN,
