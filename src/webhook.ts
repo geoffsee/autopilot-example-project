@@ -10,7 +10,8 @@ export function isPrivateIp(ip: string): boolean {
   // IPv4
   const parts = ip.split(".").map(Number);
   if (parts.length !== 4 || parts.some(n => isNaN(n) || n < 0 || n > 255)) return false;
-  const [a, b] = parts;
+  const a = parts[0]!;
+  const b = parts[1]!;
   if (a === 0) return true;                            // 0.0.0.0/8 — any-interface, routes to localhost
   if (a === 127) return true;                          // 127.0.0.0/8 loopback
   if (a === 10) return true;                           // 10.0.0.0/8 RFC-1918
@@ -99,12 +100,13 @@ export async function deliverWebhook(
   // does not expose. Substituting the resolved IP in the URL was rejected because
   // it breaks TLS (SNI/cert validation). This is a deliberate, documented tradeoff.
   try {
-    await fetch(url, {
+    const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(5_000),
     });
+    if (!res.ok) log.warn("webhook.delivery.non_2xx", { url, status: res.status });
   } catch (err) {
     log.error("webhook.delivery.failed", { url, error: String(err) });
   }

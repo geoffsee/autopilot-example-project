@@ -73,10 +73,10 @@ test("isPrivateIp: IPv6 private addresses are blocked", () => {
 test("deliverWebhook: blocks delivery when IP resolves to private range", async () => {
   const fetched: string[] = [];
   const origFetch = globalThis.fetch;
-  globalThis.fetch = async (url: string | Request | URL) => {
+  globalThis.fetch = (async (url: string | Request | URL) => {
     fetched.push(String(url));
     return new Response("ok");
-  };
+  }) as typeof fetch;
 
   await deliverWebhook(
     "http://internal.corp/hook",
@@ -91,10 +91,10 @@ test("deliverWebhook: blocks delivery when IP resolves to private range", async 
 test("deliverWebhook: delivers when IP resolves to public range", async () => {
   const fetched: Array<{ url: string; body: unknown }> = [];
   const origFetch = globalThis.fetch;
-  globalThis.fetch = async (url: string | Request | URL, opts?: RequestInit) => {
+  globalThis.fetch = (async (url: string | Request | URL, opts?: RequestInit) => {
     fetched.push({ url: String(url), body: JSON.parse((opts?.body as string) ?? "{}") });
     return new Response("ok");
-  };
+  }) as typeof fetch;
 
   await deliverWebhook(
     "http://hooks.example.com/counter",
@@ -104,17 +104,18 @@ test("deliverWebhook: delivers when IP resolves to public range", async () => {
 
   globalThis.fetch = origFetch;
   expect(fetched).toHaveLength(1);
-  expect(fetched[0].url).toBe("http://hooks.example.com/counter");
-  expect(fetched[0].body).toEqual({ name: "hits", value: 42, timestamp: "2026-01-01T00:00:00.000Z" });
+  const captured = fetched[0]!;
+  expect(captured.url).toBe("http://hooks.example.com/counter");
+  expect(captured.body).toEqual({ name: "hits", value: 42, timestamp: "2026-01-01T00:00:00.000Z" });
 });
 
 test("deliverWebhook: blocks delivery when IPv6 resolves to private range", async () => {
   const fetched: string[] = [];
   const origFetch = globalThis.fetch;
-  globalThis.fetch = async (url: string | Request | URL) => {
+  globalThis.fetch = (async (url: string | Request | URL) => {
     fetched.push(String(url));
     return new Response("ok");
-  };
+  }) as typeof fetch;
 
   await deliverWebhook(
     "http://dual-stack.example.com/hook",
@@ -128,7 +129,9 @@ test("deliverWebhook: blocks delivery when IPv6 resolves to private range", asyn
 
 test("deliverWebhook: non-fatal when fetch throws", async () => {
   const origFetch = globalThis.fetch;
-  globalThis.fetch = async () => { throw new Error("connection refused"); };
+  globalThis.fetch = (async () => {
+    throw new Error("connection refused");
+  }) as unknown as typeof fetch;
 
   // Should not throw
   await deliverWebhook(
@@ -341,7 +344,7 @@ test("incrementing a named counter delivers webhook with {name, value, timestamp
   await new Promise(r => setTimeout(r, 100));
 
   expect(deliveries.length).toBe(before + 1);
-  const delivery = deliveries[deliveries.length - 1];
+  const delivery = deliveries.at(-1)!;
   expect(delivery.name).toBe("wh-counter");
   expect(typeof delivery.value).toBe("number");
   expect(typeof delivery.timestamp).toBe("string");
