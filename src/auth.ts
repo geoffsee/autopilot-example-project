@@ -1,4 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
+import type { Database } from "bun:sqlite";
+import { findApiKeyByToken } from "./api-keys";
 
 function unauthorized(): Response {
   return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -29,13 +31,18 @@ function tokenMatches(provided: string, expected: string): boolean {
 export function createRBAC(
   writeToken = process.env.API_TOKEN,
   readToken = process.env.READ_TOKEN,
+  db?: Database,
 ) {
   function requireWrite(req: Request): Response | null {
     if (!writeToken) return null;
     const provided = extractBearer(req);
     if (provided === null) return unauthorized();
-    if (!tokenMatches(provided, writeToken)) return forbidden();
-    return null;
+    if (tokenMatches(provided, writeToken)) return null;
+    if (db) {
+      const key = findApiKeyByToken(db, provided);
+      if (key?.scope === "write") return null;
+    }
+    return forbidden();
   }
 
   function requireRead(req: Request): Response | null {
@@ -44,9 +51,21 @@ export function createRBAC(
     if (provided === null) return unauthorized();
     if (tokenMatches(provided, readToken)) return null;
     if (writeToken && tokenMatches(provided, writeToken)) return null;
+    if (db) {
+      const key = findApiKeyByToken(db, provided);
+      if (key) return null;
+    }
     return forbidden();
   }
 
-  return { requireWrite, requireRead };
-}
+  function resolveActor(req: Request): string | null {
+    if (!db) return null;
+    const provided = extractBearer(req);
+    if (!provided) return null;
+    const key = findApiKeyByToken(db, provided);
+    if (!key) return null;
+    return `key:${key.name}`;
+  }
 
+  return { requireWrite, requireRead, resolveActor };
+}
