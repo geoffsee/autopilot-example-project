@@ -8,6 +8,7 @@ import {
   registerWebhook,
   deregisterWebhook,
   getWebhookUrl,
+  listWebhooks,
 } from "../src/webhook";
 import { runMigrations } from "../src/migrate";
 
@@ -192,11 +193,14 @@ let stubServer: ReturnType<typeof Bun.serve>;
 let origin: string;
 let stubOrigin: string;
 let savedToken: string | undefined;
+let savedReadToken: string | undefined;
 const deliveries: Array<{ name: string; value: number; timestamp: string }> = [];
 
 beforeAll(() => {
   savedToken = process.env.API_TOKEN;
+  savedReadToken = process.env.READ_TOKEN;
   process.env.API_TOKEN = TEST_TOKEN;
+  process.env.READ_TOKEN = TEST_TOKEN;
 
   // Stub HTTP server to receive webhook deliveries
   stubServer = Bun.serve({
@@ -228,6 +232,11 @@ afterAll(async () => {
     delete process.env.API_TOKEN;
   } else {
     process.env.API_TOKEN = savedToken;
+  }
+  if (savedReadToken === undefined) {
+    delete process.env.READ_TOKEN;
+  } else {
+    process.env.READ_TOKEN = savedReadToken;
   }
 });
 
@@ -348,6 +357,61 @@ test("incrementing a named counter delivers webhook with {name, value, timestamp
   expect(delivery.name).toBe("wh-counter");
   expect(typeof delivery.value).toBe("number");
   expect(typeof delivery.timestamp).toBe("string");
+});
+
+// --- listWebhooks unit test ---
+
+test("listWebhooks returns all registered webhooks", async () => {
+  const db = new Database(":memory:");
+  await runMigrations(db, join(import.meta.dir, "../migrations"));
+  registerWebhook(db, "alpha", "https://a.example.com/hook");
+  registerWebhook(db, "beta", "https://b.example.com/hook");
+  const rows = listWebhooks(db);
+  expect(rows).toHaveLength(2);
+  const ids = rows.map(r => r.id).sort();
+  expect(ids).toEqual(["alpha", "beta"]);
+  for (const row of rows) {
+    expect(typeof row.url).toBe("string");
+    expect(typeof row.created_at).toBe("string");
+    expect(Array.isArray(row.events)).toBe(true);
+  }
+  db.close();
+});
+
+// --- GET /api/webhooks HTTP integration test ---
+
+test("GET /api/webhooks without auth returns 401", async () => {
+  const res = await fetch(`${origin}/api/webhooks`);
+  expect(res.status).toBe(401);
+});
+
+test("GET /api/webhooks lists registered webhooks", async () => {
+  // Register two distinct webhooks
+  await fetch(`${origin}/api/webhook/list-a`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${TEST_TOKEN}` },
+    body: JSON.stringify({ url: `${stubOrigin}/hook-a` }),
+  });
+  await fetch(`${origin}/api/webhook/list-b`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${TEST_TOKEN}` },
+    body: JSON.stringify({ url: `${stubOrigin}/hook-b` }),
+  });
+
+  const res = await fetch(`${origin}/api/webhooks`, {
+    headers: { Authorization: `Bearer ${TEST_TOKEN}` },
+  });
+  expect(res.status).toBe(200);
+  const body = await res.json() as { webhooks: Array<{ id: string; url: string; events: string[]; created_at: string }> };
+  expect(Array.isArray(body.webhooks)).toBe(true);
+  const ids = body.webhooks.map(w => w.id);
+  expect(ids).toContain("list-a");
+  expect(ids).toContain("list-b");
+  for (const w of body.webhooks) {
+    expect(typeof w.url).toBe("string");
+    expect(typeof w.created_at).toBe("string");
+    expect(Array.isArray(w.events)).toBe(true);
+  }
 });
 
 test("increment still returns 200 even when webhook delivery would fail", async () => {

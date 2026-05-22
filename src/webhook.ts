@@ -35,6 +35,22 @@ export function deregisterWebhook(db: Database, counterName: string): boolean {
   return result.changes > 0;
 }
 
+export interface WebhookRow {
+  id: string;
+  url: string;
+  events: string[];
+  created_at: string;
+}
+
+export function listWebhooks(db: Database): WebhookRow[] {
+  const rows = db
+    .query<{ counter_name: string; url: string; created_at: string }, []>(
+      "SELECT counter_name, url, created_at FROM webhooks ORDER BY created_at ASC"
+    )
+    .all();
+  return rows.map(r => ({ id: r.counter_name, url: r.url, events: [r.counter_name], created_at: r.created_at }));
+}
+
 export function getWebhookUrl(db: Database, counterName: string): string | null {
   const row = db
     .query<{ url: string }, [string]>("SELECT url FROM webhooks WHERE counter_name = ?")

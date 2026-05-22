@@ -18,7 +18,7 @@ import { log } from "./logger";
 import { rateLimiter } from "./rate-limit";
 import { createRBAC } from "./auth";
 import { writeAuditEntry, getAuditEntries } from "./audit";
-import { deliverWebhook, registerWebhook, deregisterWebhook, getWebhookUrl } from "./webhook";
+import { deliverWebhook, registerWebhook, deregisterWebhook, getWebhookUrl, listWebhooks } from "./webhook";
 
 const db = createCounterDb();
 await runMigrations(db, join(import.meta.dir, "../migrations"));
@@ -179,6 +179,15 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
             });
           }
           return Response.json({ name: result.name, value: result.value });
+        },
+      },
+
+      "/api/webhooks": {
+        GET(req) {
+          trackRequest("/api/webhooks", "GET");
+          const authErr = requireReadAuth(req);
+          if (authErr) return authErr;
+          return Response.json({ webhooks: listWebhooks(db) });
         },
       },
 
