@@ -50,6 +50,8 @@ export function createRBAC(
   return { requireWrite, requireRead };
 }
 
+// Tokens are read once at import time; use createRBAC(token, ...) directly in tests
+// that need to control tokens without relying on process.env mutation after import.
 const rbac = createRBAC();
 export const requireWriteAuth = rbac.requireWrite;
 export const requireReadAuth = rbac.requireRead;
