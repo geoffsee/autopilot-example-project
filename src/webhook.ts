@@ -7,6 +7,7 @@ export function isPrivateIp(ip: string): boolean {
   if (ip === "::1") return true;
   if (/^fe[89ab][0-9a-f]:/i.test(ip)) return true;        // fe80::/10 link-local
   if (/^f[cd]/i.test(ip)) return true;                   // fc00::/7 unique-local
+  if (/^::ffff:/i.test(ip)) return isPrivateIp(ip.slice(7)); // IPv4-mapped IPv6
   // IPv4
   const parts = ip.split(".").map(Number);
   if (parts.length !== 4 || parts.some(n => isNaN(n) || n < 0 || n > 255)) return false;
@@ -30,12 +31,8 @@ export function registerWebhook(db: Database, counterName: string, url: string):
 }
 
 export function deregisterWebhook(db: Database, counterName: string): boolean {
-  const existing = db
-    .query<{ url: string }, [string]>("SELECT url FROM webhooks WHERE counter_name = ?")
-    .get(counterName);
-  if (!existing) return false;
-  db.run("DELETE FROM webhooks WHERE counter_name = ?", [counterName]);
-  return true;
+  const result = db.run("DELETE FROM webhooks WHERE counter_name = ?", [counterName]);
+  return result.changes > 0;
 }
 
 export function getWebhookUrl(db: Database, counterName: string): string | null {
