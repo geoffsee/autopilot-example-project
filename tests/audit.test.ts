@@ -82,6 +82,7 @@ test("GET /api/audit returns { entries: [] } initially", async () => {
   expect(res.status).toBe(200);
   const body = (await res.json()) as { entries: unknown[] };
   expect(Array.isArray(body.entries)).toBe(true);
+  expect(body.entries.length).toBe(0);
 });
 
 test("audit row appears after named counter increment", async () => {
