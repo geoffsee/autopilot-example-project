@@ -5,7 +5,7 @@ import { log } from "./logger";
 export function isPrivateIp(ip: string): boolean {
   // IPv6 loopback / link-local / ULA
   if (ip === "::1") return true;
-  if (ip.toLowerCase().startsWith("fe80:")) return true;  // link-local
+  if (/^fe[89ab][0-9a-f]:/i.test(ip)) return true;        // fe80::/10 link-local
   if (/^f[cd]/i.test(ip)) return true;                   // fc00::/7 unique-local
   // IPv4
   const parts = ip.split(".").map(Number);

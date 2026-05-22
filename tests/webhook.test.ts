@@ -60,6 +60,10 @@ test("isPrivateIp: public IPs are allowed", () => {
 test("isPrivateIp: IPv6 private addresses are blocked", () => {
   expect(isPrivateIp("::1")).toBe(true);           // loopback
   expect(isPrivateIp("fe80::1")).toBe(true);        // link-local
+  expect(isPrivateIp("fe90::1")).toBe(true);        // link-local (fe80::/10)
+  expect(isPrivateIp("fea0::1")).toBe(true);        // link-local (fe80::/10)
+  expect(isPrivateIp("feb0::1")).toBe(true);        // link-local (fe80::/10)
+  expect(isPrivateIp("febc::1")).toBe(true);        // link-local (fe80::/10)
   expect(isPrivateIp("fc00::1")).toBe(true);        // ULA
   expect(isPrivateIp("fd12:3456::1")).toBe(true);   // ULA
   expect(isPrivateIp("2001:db8::1")).toBe(false);   // documentation range (public)
@@ -103,6 +107,24 @@ test("deliverWebhook: delivers when IP resolves to public range", async () => {
   expect(fetched).toHaveLength(1);
   expect(fetched[0].url).toBe("http://hooks.example.com/counter");
   expect(fetched[0].body).toEqual({ name: "hits", value: 42, timestamp: "2026-01-01T00:00:00.000Z" });
+});
+
+test("deliverWebhook: blocks delivery when IPv6 resolves to private range", async () => {
+  const fetched: string[] = [];
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = async (url: string | Request | URL) => {
+    fetched.push(String(url));
+    return new Response("ok");
+  };
+
+  await deliverWebhook(
+    "http://dual-stack.example.com/hook",
+    { name: "test", value: 1, timestamp: new Date().toISOString() },
+    { _resolveIp: async () => "93.184.216.34", _resolveIp6: async () => "fc00::1" }
+  );
+
+  globalThis.fetch = origFetch;
+  expect(fetched).toHaveLength(0);
 });
 
 test("deliverWebhook: non-fatal when fetch throws", async () => {
