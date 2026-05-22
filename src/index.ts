@@ -8,7 +8,7 @@ import { handleHealthGet } from "./health";
 import { handleMetricsGet, trackRequest } from "./metrics";
 import { log } from "./logger";
 import { rateLimiter } from "./rate-limit";
-import { requireAuth } from "./auth";
+import { requireWriteAuth, requireReadAuth } from "./auth";
 
 const db = createCounterDb();
 await runMigrations(db, join(import.meta.dir, "../migrations"));
@@ -50,13 +50,15 @@ export function createServer(port?: number) {
       },
 
       "/api/counter": {
-        GET(_req) {
+        GET(req) {
           trackRequest("/api/counter", "GET");
+          const authErr = requireReadAuth(req);
+          if (authErr) return authErr;
           return Response.json({ count: getCount(db) });
         },
         async POST(req, server) {
           trackRequest("/api/counter", "POST");
-          const authErr = requireAuth(req);
+          const authErr = requireWriteAuth(req);
           if (authErr) return authErr;
           const ip = server.requestIP(req)?.address ?? "unknown";
           const limited = rateLimiter(ip);
@@ -72,15 +74,19 @@ export function createServer(port?: number) {
       },
 
       "/api/activity": {
-        GET(_req) {
+        GET(req) {
           trackRequest("/api/activity", "GET");
+          const authErr = requireReadAuth(req);
+          if (authErr) return authErr;
           return Response.json({ entries: getRecentActivity(db) });
         },
       },
 
       "/api/counter/history": {
-        GET(_req) {
+        GET(req) {
           trackRequest("/api/counter/history", "GET");
+          const authErr = requireReadAuth(req);
+          if (authErr) return authErr;
           return Response.json({ entries: getRecentActivity(db) });
         },
       },
@@ -88,6 +94,8 @@ export function createServer(port?: number) {
       "/api/counter/:name": {
         GET(req) {
           trackRequest("/api/counter/:name", "GET");
+          const authErr = requireReadAuth(req);
+          if (authErr) return authErr;
           return Response.json(getNamedCounter(db, req.params.name));
         },
       },
@@ -95,7 +103,7 @@ export function createServer(port?: number) {
       "/api/counter/:name/reset": {
         POST(req, server) {
           trackRequest("/api/counter/:name/reset", "POST");
-          const authErr = requireAuth(req);
+          const authErr = requireWriteAuth(req);
           if (authErr) return authErr;
           const ip = server.requestIP(req)?.address ?? "unknown";
           const limited = rateLimiter(ip);
@@ -118,7 +126,7 @@ export function createServer(port?: number) {
       "/api/counter/:name/increment": {
         POST(req, server) {
           trackRequest("/api/counter/:name/increment", "POST");
-          const authErr = requireAuth(req);
+          const authErr = requireWriteAuth(req);
           if (authErr) return authErr;
           const ip = server.requestIP(req)?.address ?? "unknown";
           const limited = rateLimiter(ip);
