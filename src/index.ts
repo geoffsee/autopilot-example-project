@@ -151,10 +151,10 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
             return Response.json({ error: "url is required" }, { status: 400 });
           }
           const url = (body as Record<string, unknown>).url as string;
-          try {
-            new URL(url);
-          } catch {
-            return Response.json({ error: "Invalid URL" }, { status: 400 });
+          const parsed = (() => { try { return new URL(url); } catch { return null; } })();
+          if (!parsed) return Response.json({ error: "Invalid URL" }, { status: 400 });
+          if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+            return Response.json({ error: "URL must use http or https" }, { status: 400 });
           }
           const { name } = req.params;
           registerWebhook(db, name, url);
