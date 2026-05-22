@@ -21,9 +21,9 @@ function extractBearer(req: Request): string | null {
 }
 
 function tokenMatches(provided: string, expected: string): boolean {
-  const a = Buffer.from(expected);
-  const b = Buffer.from(provided);
-  return a.length === b.length && timingSafeEqual(a, b);
+  const expectedBuf = Buffer.from(expected);
+  const providedBuf = Buffer.from(provided);
+  return expectedBuf.length === providedBuf.length && timingSafeEqual(expectedBuf, providedBuf);
 }
 
 export function createRBAC(
@@ -50,6 +50,8 @@ export function createRBAC(
   return { requireWrite, requireRead };
 }
 
+// Tokens are read once at import time; use createRBAC(token, ...) directly in tests
+// that need to control tokens without relying on process.env mutation after import.
 const rbac = createRBAC();
 export const requireWriteAuth = rbac.requireWrite;
 export const requireReadAuth = rbac.requireRead;

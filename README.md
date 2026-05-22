@@ -20,7 +20,7 @@ The autopilot action runs everything inline — no dispatched follow-up workflow
 
 Access is controlled via environment variables:
 
-- `API_TOKEN` — write access (`POST /api/counter`, `POST /api/counter/:name/increment`)
+- `API_TOKEN` — write access (`POST /api/counter`, `POST /api/counter/:name/increment`, `POST /api/counter/:name/reset`)
 - `READ_TOKEN` — read access (`GET /api/counter`, `/api/counter/history`, `/api/activity`, `/api/counter/:name`)
 
 Set both to require auth on all endpoints; omit `READ_TOKEN` to leave GET endpoints open.
