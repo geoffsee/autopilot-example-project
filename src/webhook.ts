@@ -1,8 +1,6 @@
 import { Database } from "bun:sqlite";
 import { lookup } from "node:dns/promises";
-import { join } from "node:path";
 import { log } from "./logger";
-import { runMigrations } from "./migrate";
 
 export function isPrivateIp(ip: string): boolean {
   // IPv6 loopback / link-local / ULA
@@ -20,10 +18,6 @@ export function isPrivateIp(ip: string): boolean {
   if (a === 192 && b === 168) return true;             // 192.168.0.0/16 RFC-1918
   if (a === 169 && b === 254) return true;             // 169.254.0.0/16 link-local
   return false;
-}
-
-export async function setupWebhooks(db: Database): Promise<void> {
-  await runMigrations(db, join(import.meta.dir, "../migrations"));
 }
 
 export function registerWebhook(db: Database, counterName: string, url: string): void {
@@ -52,7 +46,10 @@ export function getWebhookUrl(db: Database, counterName: string): string | null 
 export async function deliverWebhook(
   url: string,
   payload: Record<string, unknown>,
-  opts: { _resolveIp?: (hostname: string) => Promise<string> } = {}
+  opts: {
+    _resolveIp?: (hostname: string) => Promise<string>;
+    _resolveIp6?: (hostname: string) => Promise<string | null>;
+  } = {}
 ): Promise<void> {
   let hostname: string;
   try {
@@ -62,21 +59,35 @@ export async function deliverWebhook(
     return;
   }
 
-  const resolve = opts._resolveIp ?? (async (h: string) => {
+  const resolve4 = opts._resolveIp ?? (async (h: string) => {
     const { address } = await lookup(h, { family: 4 });
     return address;
   });
+  const resolve6 = opts._resolveIp6 ?? (async (h: string) => {
+    try {
+      const { address } = await lookup(h, { family: 6 });
+      return address;
+    } catch {
+      return null;
+    }
+  });
 
-  let ip: string;
+  let ip4: string;
   try {
-    ip = await resolve(hostname);
+    ip4 = await resolve4(hostname);
   } catch (err) {
     log.error("webhook.delivery.dns_failed", { url, error: String(err) });
     return;
   }
 
-  if (isPrivateIp(ip)) {
-    log.error("webhook.delivery.blocked_private_ip", { url, ip });
+  if (isPrivateIp(ip4)) {
+    log.error("webhook.delivery.blocked_private_ip", { url, ip: ip4 });
+    return;
+  }
+
+  const ip6 = await resolve6(hostname);
+  if (ip6 !== null && isPrivateIp(ip6)) {
+    log.error("webhook.delivery.blocked_private_ip", { url, ip: ip6 });
     return;
   }
 

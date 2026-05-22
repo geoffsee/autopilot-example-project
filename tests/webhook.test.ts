@@ -1,15 +1,16 @@
 import { test, expect, beforeAll, afterAll } from "bun:test";
 import { Database } from "bun:sqlite";
+import { join } from "node:path";
 import { createServer } from "../src/index";
 import {
   isPrivateIp,
   deliverWebhook,
-  setupWebhooks,
   registerWebhook,
   deregisterWebhook,
   getWebhookUrl,
 } from "../src/webhook";
 import { setupNamedCounters } from "../src/counter";
+import { runMigrations } from "../src/migrate";
 
 const TEST_TOKEN = "webhook-test-token";
 
@@ -122,7 +123,7 @@ test("deliverWebhook: non-fatal when fetch throws", async () => {
 
 test("registerWebhook stores URL; getWebhookUrl retrieves it", async () => {
   const db = new Database(":memory:");
-  await setupWebhooks(db);
+  await runMigrations(db, join(import.meta.dir, "../migrations"));
   registerWebhook(db, "hits", "https://hooks.example.com/hits");
   expect(getWebhookUrl(db, "hits")).toBe("https://hooks.example.com/hits");
   db.close();
@@ -130,7 +131,7 @@ test("registerWebhook stores URL; getWebhookUrl retrieves it", async () => {
 
 test("registerWebhook replaces existing URL for same counter", async () => {
   const db = new Database(":memory:");
-  await setupWebhooks(db);
+  await runMigrations(db, join(import.meta.dir, "../migrations"));
   registerWebhook(db, "hits", "https://a.example.com/hook");
   registerWebhook(db, "hits", "https://b.example.com/hook");
   expect(getWebhookUrl(db, "hits")).toBe("https://b.example.com/hook");
@@ -139,7 +140,7 @@ test("registerWebhook replaces existing URL for same counter", async () => {
 
 test("deregisterWebhook removes the URL and returns true", async () => {
   const db = new Database(":memory:");
-  await setupWebhooks(db);
+  await runMigrations(db, join(import.meta.dir, "../migrations"));
   registerWebhook(db, "hits", "https://hooks.example.com/hits");
   expect(deregisterWebhook(db, "hits")).toBe(true);
   expect(getWebhookUrl(db, "hits")).toBeNull();
@@ -148,14 +149,14 @@ test("deregisterWebhook removes the URL and returns true", async () => {
 
 test("deregisterWebhook returns false for unknown counter", async () => {
   const db = new Database(":memory:");
-  await setupWebhooks(db);
+  await runMigrations(db, join(import.meta.dir, "../migrations"));
   expect(deregisterWebhook(db, "nonexistent")).toBe(false);
   db.close();
 });
 
 test("getWebhookUrl returns null when no webhook registered", async () => {
   const db = new Database(":memory:");
-  await setupWebhooks(db);
+  await runMigrations(db, join(import.meta.dir, "../migrations"));
   expect(getWebhookUrl(db, "hits")).toBeNull();
   db.close();
 });
