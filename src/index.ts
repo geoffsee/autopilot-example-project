@@ -1,7 +1,7 @@
 import { serve } from "bun";
 import { join } from "node:path";
 import index from "./index.html";
-import { createCounterDb, getCount, handleCounterPost, getNamedCounter, incrementNamedCounter } from "./counter";
+import { createCounterDb, getCount, handleCounterPost, getNamedCounter, incrementNamedCounter, resetNamedCounter } from "./counter";
 import { logActivity, getRecentActivity } from "./activity";
 import { runMigrations } from "./migrate";
 import { handleHealthGet } from "./health";
@@ -97,6 +97,29 @@ export function createServer(port?: number) {
           const authErr = requireReadAuth(req);
           if (authErr) return authErr;
           return Response.json(getNamedCounter(db, req.params.name));
+        },
+      },
+
+      "/api/counter/:name/reset": {
+        POST(req, server) {
+          trackRequest("/api/counter/:name/reset", "POST");
+          const authErr = requireWriteAuth(req);
+          if (authErr) return authErr;
+          const ip = server.requestIP(req)?.address ?? "unknown";
+          const limited = rateLimiter(ip);
+          if (limited) return limited;
+          const { name } = req.params;
+          const result = resetNamedCounter(db, name);
+          if (!result) {
+            return Response.json({ error: "Counter not found" }, { status: 404 });
+          }
+          log.info("counter.reset", {
+            actor: server.requestIP(req)?.address ?? "unknown",
+            counter: name,
+            old_value: result.oldValue,
+            timestamp: new Date().toISOString(),
+          });
+          return Response.json({ name: result.name, value: result.value });
         },
       },
 
