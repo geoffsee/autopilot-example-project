@@ -1,7 +1,7 @@
 import { serve } from "bun";
 import { join } from "node:path";
 import index from "./index.html";
-import { createCounterDb, getCount, handleCounterPost, getNamedCounter, incrementNamedCounter, resetNamedCounter } from "./counter";
+import { createCounterDb, getCount, handleCounterPost, getNamedCounter, incrementNamedCounter, getCountersByPrefix, resetNamedCounter } from "./counter";
 import { logActivity, getRecentActivity } from "./activity";
 import { runMigrations } from "./migrate";
 import { handleHealthGet } from "./health";
@@ -59,6 +59,11 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
           trackRequest("/api/counter", "GET");
           const authErr = requireReadAuth(req);
           if (authErr) return authErr;
+          const url = new URL(req.url);
+          const prefix = url.searchParams.get("prefix");
+          if (prefix !== null) {
+            return Response.json(getCountersByPrefix(db, prefix));
+          }
           return Response.json({ count: getCount(db) });
         },
         async POST(req, server) {
