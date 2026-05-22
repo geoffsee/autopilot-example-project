@@ -19,6 +19,7 @@ import { rateLimiter } from "./rate-limit";
 import { createRBAC } from "./auth";
 import { writeAuditEntry, getAuditEntries } from "./audit";
 import { deliverWebhook, registerWebhook, deregisterWebhook, getWebhookUrl } from "./webhook";
+import { errorJson, ErrorCode } from "./errors";
 
 const db = createCounterDb();
 await runMigrations(db, join(import.meta.dir, "../migrations"));
@@ -148,7 +149,7 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
           const { name } = req.params;
           const result = resetNamedCounter(db, name);
           if (!result) {
-            return Response.json({ error: "Counter not found" }, { status: 404 });
+            return errorJson("Counter not found", ErrorCode.COUNTER_NOT_FOUND, 404);
           }
           writeAuditEntry(db, ip, name, result.oldValue, result.value);
           log.info("counter.reset", {
@@ -191,16 +192,16 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
           try {
             body = await req.json();
           } catch {
-            return Response.json({ error: "Invalid JSON" }, { status: 400 });
+            return errorJson("Invalid JSON", ErrorCode.INVALID_JSON, 400);
           }
           if (typeof body !== "object" || body === null || !("url" in body) || typeof (body as Record<string, unknown>).url !== "string") {
-            return Response.json({ error: "url is required" }, { status: 400 });
+            return errorJson("url is required", ErrorCode.MISSING_FIELD, 400);
           }
           const url = (body as Record<string, unknown>).url as string;
           const parsed = (() => { try { return new URL(url); } catch { return null; } })();
-          if (!parsed) return Response.json({ error: "Invalid URL" }, { status: 400 });
+          if (!parsed) return errorJson("Invalid URL", ErrorCode.INVALID_URL, 400);
           if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-            return Response.json({ error: "URL must use http or https" }, { status: 400 });
+            return errorJson("URL must use http or https", ErrorCode.INVALID_URL_SCHEME, 400);
           }
           const { name } = req.params;
           registerWebhook(db, name, url);
@@ -214,7 +215,7 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
           const { name } = req.params;
           const removed = deregisterWebhook(db, name);
           if (!removed) {
-            return Response.json({ error: "Webhook not found" }, { status: 404 });
+            return errorJson("Webhook not found", ErrorCode.WEBHOOK_NOT_FOUND, 404);
           }
           log.info("webhook.deregistered", { counter: name });
           return Response.json({ name });
@@ -223,7 +224,7 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
 
       "/ws": (req, server) => {
         if (server.upgrade(req)) return;
-        return new Response("WebSocket upgrade failed", { status: 400 });
+        return errorJson("WebSocket upgrade failed", ErrorCode.WEBSOCKET_UPGRADE_FAILED, 400);
       },
     },
 
