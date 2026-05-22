@@ -91,6 +91,12 @@ export async function deliverWebhook(
     return;
   }
 
+  // Residual TOCTOU risk: DNS resolution above and the fetch() below are separate
+  // operations. A domain with a sub-second TTL could serve a public IP during the
+  // pre-check and switch to a private IP before fetch() re-resolves it. Closing
+  // this fully would require intercepting the TCP destination IP, which fetch()
+  // does not expose. Substituting the resolved IP in the URL was rejected because
+  // it breaks TLS (SNI/cert validation). This is a deliberate, documented tradeoff.
   try {
     await fetch(url, {
       method: "POST",

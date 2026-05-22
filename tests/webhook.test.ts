@@ -262,6 +262,18 @@ test("POST /api/webhook/:name with missing url body returns 400", async () => {
   expect(res.status).toBe(400);
 });
 
+test("POST /api/webhook/:name with non-http(s) url returns 400", async () => {
+  const res = await fetch(`${origin}/api/webhook/hits`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${TEST_TOKEN}`,
+    },
+    body: JSON.stringify({ url: "ftp://example.com/hook" }),
+  });
+  expect(res.status).toBe(400);
+});
+
 test("POST /api/webhook/:name registers webhook and returns 201", async () => {
   const res = await fetch(`${origin}/api/webhook/hits`, {
     method: "POST",

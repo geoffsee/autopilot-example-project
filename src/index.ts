@@ -8,7 +8,7 @@ import { handleHealthGet } from "./health";
 import { handleMetricsGet, trackRequest } from "./metrics";
 import { log } from "./logger";
 import { rateLimiter } from "./rate-limit";
-import { requireAuth } from "./auth";
+import { requireWriteAuth, requireReadAuth } from "./auth";
 import { deliverWebhook, registerWebhook, deregisterWebhook, getWebhookUrl } from "./webhook";
 
 const db = createCounterDb();
@@ -54,13 +54,15 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
       },
 
       "/api/counter": {
-        GET(_req) {
+        GET(req) {
           trackRequest("/api/counter", "GET");
+          const authErr = requireReadAuth(req);
+          if (authErr) return authErr;
           return Response.json({ count: getCount(db) });
         },
         async POST(req, server) {
           trackRequest("/api/counter", "POST");
-          const authErr = requireAuth(req);
+          const authErr = requireWriteAuth(req);
           if (authErr) return authErr;
           const ip = server.requestIP(req)?.address ?? "unknown";
           const limited = rateLimiter(ip);
@@ -76,15 +78,19 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
       },
 
       "/api/activity": {
-        GET(_req) {
+        GET(req) {
           trackRequest("/api/activity", "GET");
+          const authErr = requireReadAuth(req);
+          if (authErr) return authErr;
           return Response.json({ entries: getRecentActivity(db) });
         },
       },
 
       "/api/counter/history": {
-        GET(_req) {
+        GET(req) {
           trackRequest("/api/counter/history", "GET");
+          const authErr = requireReadAuth(req);
+          if (authErr) return authErr;
           return Response.json({ entries: getRecentActivity(db) });
         },
       },
@@ -92,6 +98,8 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
       "/api/counter/:name": {
         GET(req) {
           trackRequest("/api/counter/:name", "GET");
+          const authErr = requireReadAuth(req);
+          if (authErr) return authErr;
           return Response.json(getNamedCounter(db, req.params.name));
         },
       },
@@ -99,7 +107,7 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
       "/api/counter/:name/reset": {
         POST(req, server) {
           trackRequest("/api/counter/:name/reset", "POST");
-          const authErr = requireAuth(req);
+          const authErr = requireWriteAuth(req);
           if (authErr) return authErr;
           const { name } = req.params;
           const result = resetNamedCounter(db, name);
@@ -119,7 +127,7 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
       "/api/counter/:name/increment": {
         async POST(req, server) {
           trackRequest("/api/counter/:name/increment", "POST");
-          const authErr = requireAuth(req);
+          const authErr = requireWriteAuth(req);
           if (authErr) return authErr;
           const ip = server.requestIP(req)?.address ?? "unknown";
           const limited = rateLimiter(ip);
@@ -139,7 +147,7 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
       "/api/webhook/:name": {
         async POST(req) {
           trackRequest("/api/webhook/:name", "POST");
-          const authErr = requireAuth(req);
+          const authErr = requireWriteAuth(req);
           if (authErr) return authErr;
           let body: unknown;
           try {
@@ -163,7 +171,7 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
         },
         DELETE(req) {
           trackRequest("/api/webhook/:name", "DELETE");
-          const authErr = requireAuth(req);
+          const authErr = requireWriteAuth(req);
           if (authErr) return authErr;
           const { name } = req.params;
           const removed = deregisterWebhook(db, name);
