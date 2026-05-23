@@ -6,3 +6,6 @@ CREATE TABLE IF NOT EXISTS _audit (
   new_value    INTEGER NOT NULL,
   timestamp    TEXT NOT NULL
 );
+
+-- down:
+DROP TABLE IF EXISTS _audit;
