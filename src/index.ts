@@ -19,6 +19,11 @@ import { rateLimiter } from "./rate-limit";
 import { createRBAC, createAuthMiddleware } from "./auth";
 import { writeAuditEntry, getAuditEntries } from "./audit";
 import { deliverWebhook, deliverWebhookRaw, registerWebhook, deregisterWebhook, getWebhookUrl, listWebhooks, enqueueWebhookDelivery, getWebhookDeliveries, processWebhookRetries } from "./webhook";
+import { validateEnv } from "./env";
+
+if (import.meta.main) {
+  validateEnv();
+}
 
 const db = createCounterDb();
 await runMigrations(db, join(import.meta.dir, "../migrations"));
