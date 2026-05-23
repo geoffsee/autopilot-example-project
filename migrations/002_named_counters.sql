@@ -2,3 +2,6 @@ CREATE TABLE IF NOT EXISTS counters (
   name  TEXT PRIMARY KEY,
   value INTEGER NOT NULL DEFAULT 0
 );
+
+-- down:
+DROP TABLE IF EXISTS counters;
