@@ -376,7 +376,7 @@ test("listWebhooks returns all registered webhooks", async () => {
   for (const row of rows) {
     expect(typeof row.url).toBe("string");
     expect(typeof row.created_at).toBe("string");
-    expect(Array.isArray(row.events)).toBe(true);
+    expect(row.events).toEqual(["counter.increment"]);
   }
   db.close();
 });

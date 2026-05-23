@@ -136,7 +136,7 @@ export function listWebhooks(db: Database): WebhookRow[] {
       "SELECT counter_name, url, created_at FROM webhooks ORDER BY created_at ASC"
     )
     .all();
-  return rows.map(r => ({ id: r.counter_name, url: r.url, events: [r.counter_name], created_at: r.created_at }));
+  return rows.map(r => ({ id: r.counter_name, url: r.url, events: ["counter.increment"], created_at: r.created_at }));
 }
 
 export function getWebhookUrl(db: Database, counterName: string): string | null {
