@@ -3,3 +3,6 @@ CREATE TABLE IF NOT EXISTS webhooks (
   url          TEXT NOT NULL,
   created_at   TEXT NOT NULL
 );
+
+-- down:
+DROP TABLE IF EXISTS webhooks;

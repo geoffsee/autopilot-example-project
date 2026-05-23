@@ -10,3 +10,7 @@ CREATE TABLE IF NOT EXISTS activity (
   action    TEXT NOT NULL,
   timestamp TEXT NOT NULL
 );
+
+-- down:
+DROP TABLE IF EXISTS activity;
+DROP TABLE IF EXISTS counter;
