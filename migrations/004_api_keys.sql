@@ -5,3 +5,6 @@ CREATE TABLE IF NOT EXISTS _api_keys (
   scope      TEXT NOT NULL CHECK(scope IN ('read', 'write')),
   created_at TEXT NOT NULL
 );
+
+-- down:
+DROP TABLE IF EXISTS _api_keys;
