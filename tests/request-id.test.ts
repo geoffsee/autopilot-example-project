@@ -1,5 +1,6 @@
-import { expect, test, beforeAll, afterAll, spyOn } from "bun:test";
+import { expect, test, beforeAll, afterAll } from "bun:test";
 import { createServer } from "../src/index";
+import { setLogHook } from "../src/logger";
 
 let server: ReturnType<typeof createServer>;
 let baseUrl: string;
@@ -59,10 +60,7 @@ test("caller-provided X-Request-ID is echoed on POST /api/counter", async () => 
 
 test("log correlation: request_id appears in structured log for webhook registration", async () => {
   const captured: string[] = [];
-  const spy = spyOn(process.stdout, "write").mockImplementation((chunk: string | Uint8Array) => {
-    captured.push(typeof chunk === "string" ? chunk : new TextDecoder().decode(chunk));
-    return true;
-  });
+  setLogHook((line) => captured.push(line));
 
   const requestId = "log-correlation-test-id-789";
   await fetch(`${baseUrl}/api/webhook/log-test-counter`, {
@@ -74,7 +72,7 @@ test("log correlation: request_id appears in structured log for webhook registra
     body: JSON.stringify({ url: "http://example.com/webhook" }),
   });
 
-  spy.mockRestore();
+  setLogHook(null);
 
   const logLine = captured.find((l) => {
     try {
