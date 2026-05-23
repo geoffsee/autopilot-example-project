@@ -6,7 +6,7 @@ All error responses use the following envelope:
 { "error": "<human-readable message>", "code": "<SCREAMING_SNAKE_CASE>" }
 ```
 
-This applies to every 4xx and 5xx response in the API.
+This applies to all API error responses.
 
 ## Code Reference
 

@@ -185,7 +185,7 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
           return errorJson("url is required", ErrorCode.MISSING_FIELD, 400);
         }
         if (typeof (body as Record<string, unknown>).url !== "string") {
-          return errorJson("url must be a string", ErrorCode.INVALID_URL, 400);
+          return errorJson("url must be a string", ErrorCode.INVALID_BODY, 400);
         }
         const url = (body as Record<string, unknown>).url as string;
         const parsed = (() => { try { return new URL(url); } catch { return null; } })();
