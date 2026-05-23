@@ -181,8 +181,11 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
         } catch {
           return errorJson("Invalid JSON", ErrorCode.INVALID_JSON, 400);
         }
-        if (typeof body !== "object" || body === null || !("url" in body) || typeof (body as Record<string, unknown>).url !== "string") {
+        if (typeof body !== "object" || body === null || !("url" in body)) {
           return errorJson("url is required", ErrorCode.MISSING_FIELD, 400);
+        }
+        if (typeof (body as Record<string, unknown>).url !== "string") {
+          return errorJson("url must be a string", ErrorCode.INVALID_URL, 400);
         }
         const url = (body as Record<string, unknown>).url as string;
         const parsed = (() => { try { return new URL(url); } catch { return null; } })();
