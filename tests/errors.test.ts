@@ -1,21 +1,20 @@
 import { test, expect, beforeAll, afterAll } from "bun:test";
 import { Database } from "bun:sqlite";
-import { join } from "node:path";
 import { createRBAC } from "../src/auth";
 import { createRateLimiter } from "../src/rate-limit";
 import { handleCounterPost } from "../src/counter";
 import { createServer } from "../src/index";
-import { runMigrations } from "../src/migrate";
 import { setupCounter } from "../src/counter";
 
 // --- Auth: structured error codes ---
 
-test("RBAC unauthorized response has code UNAUTHORIZED", () => {
+test("RBAC unauthorized response has code UNAUTHORIZED", async () => {
   const { requireWrite } = createRBAC("secret", undefined);
   const req = new Request("http://localhost/api/counter", { method: "POST" });
-  const res = requireWrite(req);
-  expect(res?.status).toBe(401);
-  // code field checked via integration
+  const res = requireWrite(req)!;
+  expect(res.status).toBe(401);
+  const body = await res.json() as { error: string; code: string };
+  expect(body.code).toBe("UNAUTHORIZED");
 });
 
 test("RBAC forbidden response has code FORBIDDEN", async () => {
