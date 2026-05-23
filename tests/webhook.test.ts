@@ -550,8 +550,9 @@ test("processWebhookRetries does not pick up deliveries with future next_retry_a
     name: "future-retry", value: 1, timestamp: "2026-01-01T00:00:00.000Z",
   });
 
-  // Set next_retry_at far in the future
-  db.run("UPDATE _webhook_deliveries SET next_retry_at = datetime('now', '+1 hour')");
+  // Set next_retry_at far in the future (use ISO format to match enqueueWebhookDelivery)
+  const futureTime = new Date(Date.now() + 3600 * 1000).toISOString();
+  db.run("UPDATE _webhook_deliveries SET next_retry_at = ?", [futureTime]);
 
   const delivered: unknown[] = [];
   await processWebhookRetries(db, async (_url, p) => { delivered.push(p); });
