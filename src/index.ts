@@ -21,6 +21,7 @@ import { writeAuditEntry, getAuditEntries } from "./audit";
 import { deliverWebhook, registerWebhook, deregisterWebhook, getWebhookUrl } from "./webhook";
 import { validateEnv } from "./env";
 
+// validate before DB init
 if (import.meta.main) {
   validateEnv();
 }
