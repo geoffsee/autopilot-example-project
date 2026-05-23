@@ -20,6 +20,7 @@ import { createRBAC, createAuthMiddleware } from "./auth";
 import { writeAuditEntry, getAuditEntries } from "./audit";
 import { deliverWebhook, registerWebhook, deregisterWebhook, getWebhookUrl } from "./webhook";
 import { errorJson, ErrorCode } from "./errors";
+import { validateEnv } from "./env";
 
 const db = createCounterDb();
 await runMigrations(db, join(import.meta.dir, "../migrations"));
@@ -234,6 +235,7 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
 }
 
 if (import.meta.main) {
+  validateEnv();
   const server = createServer();
   log.info("server started", { url: server.url.href });
 }
