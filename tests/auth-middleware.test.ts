@@ -131,3 +131,13 @@ test("close-by-default: withRead tag is preserved through applyDefaultAuth (not 
   const res = routes["/api/counter"].GET(new Request("http://localhost/api/counter"));
   expect(res.status).toBe(401);
 });
+
+test("close-by-default: tag from one instance is NOT recognised by another instance", () => {
+  const m1 = createAuthMiddleware(makeRbac());
+  const m2 = createAuthMiddleware(makeRbac());
+  // Handler tagged public by m1 — m2 should NOT honour that tag
+  const pub = m1.withPublic((_req: Request) => Response.json({ ok: true }));
+  const routes = m2.applyDefaultAuth({ "/api/test": { GET: pub } }) as Record<string, Record<string, (r: Request) => Response>>;
+  // m2 should apply its own withRead, so unauthenticated → 401
+  expect(routes["/api/test"].GET(new Request("http://localhost/api/test")).status).toBe(401);
+});

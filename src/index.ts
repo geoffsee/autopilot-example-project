@@ -31,7 +31,7 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
   const { withRead, withWrite, withPublic, applyDefaultAuth } = createAuthMiddleware(rbac);
 
   const routes = applyDefaultAuth({
-    "/*": index,
+    "/*": withPublic(index as any),
 
     "/metrics": {
       GET: withPublic((_req: Request) => {

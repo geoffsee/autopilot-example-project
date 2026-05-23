@@ -26,21 +26,21 @@ function tokenMatches(provided: string, expected: string): boolean {
   return expectedBuf.length === providedBuf.length && timingSafeEqual(expectedBuf, providedBuf);
 }
 
-const AUTH_LEVEL_KEY = Symbol("authLevel");
-const HTTP_METHODS = new Set(["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]);
-
 type AnyHandler = (req: any, ...rest: any[]) => Response | Promise<Response>;
 
-function tagHandler<T extends AnyHandler>(fn: T, level: "read" | "write" | "public"): T {
-  (fn as any)[AUTH_LEVEL_KEY] = level;
-  return fn;
-}
-
-function getHandlerAuthLevel(fn: AnyHandler): string | undefined {
-  return (fn as any)[AUTH_LEVEL_KEY];
-}
-
 export function createAuthMiddleware(rbac: ReturnType<typeof createRBAC>) {
+  const AUTH_LEVEL_KEY = Symbol("authLevel");
+  const HTTP_METHODS = new Set(["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]);
+
+  function tagHandler<T extends AnyHandler>(fn: T, level: "read" | "write" | "public"): T {
+    (fn as any)[AUTH_LEVEL_KEY] = level;
+    return fn;
+  }
+
+  function getHandlerAuthLevel(fn: AnyHandler): string | undefined {
+    return (fn as any)[AUTH_LEVEL_KEY];
+  }
+
   function withRead<T extends AnyHandler>(handler: T): T {
     const wrapped = ((req: Request, ...rest: any[]) => {
       const authErr = rbac.requireRead(req);
