@@ -18,6 +18,16 @@ export interface DeliveryRow {
   last_attempted_at: string | null;
 }
 
+export async function deliverWebhookRaw(url: string, payload: Record<string, unknown>): Promise<void> {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(5_000),
+  });
+  if (!res.ok) throw new Error(`non-2xx: ${res.status}`);
+}
+
 export function enqueueWebhookDelivery(
   db: Database,
   webhookId: string,

@@ -18,7 +18,7 @@ import { log } from "./logger";
 import { rateLimiter } from "./rate-limit";
 import { createRBAC, createAuthMiddleware } from "./auth";
 import { writeAuditEntry, getAuditEntries } from "./audit";
-import { deliverWebhook, registerWebhook, deregisterWebhook, getWebhookUrl, listWebhooks, enqueueWebhookDelivery, getWebhookDeliveries, processWebhookRetries } from "./webhook";
+import { deliverWebhook, deliverWebhookRaw, registerWebhook, deregisterWebhook, getWebhookUrl, listWebhooks, enqueueWebhookDelivery, getWebhookDeliveries, processWebhookRetries } from "./webhook";
 
 const db = createCounterDb();
 await runMigrations(db, join(import.meta.dir, "../migrations"));
@@ -269,8 +269,8 @@ if (import.meta.main) {
   log.info("server started", { url: server.url.href });
 
   setInterval(() => {
-    processWebhookRetries(db, deliverWebhook).catch(err => {
+    processWebhookRetries(db, deliverWebhookRaw).catch(err => {
       log.error("webhook.retry.background_error", { error: String(err) });
     });
-  }, 1000);
+  }, 5000);
 }
