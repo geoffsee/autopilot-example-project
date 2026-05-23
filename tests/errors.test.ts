@@ -222,3 +222,10 @@ test("403 response from auth includes code FORBIDDEN", async () => {
   const body = await res.json() as { error: string; code: string };
   expect(body.code).toBe("FORBIDDEN");
 });
+
+test("GET /ws without Upgrade header returns WEBSOCKET_UPGRADE_FAILED", async () => {
+  const res = await fetch(`${origin}/ws`);
+  expect(res.status).toBe(400);
+  const body = await res.json() as { error: string; code: string };
+  expect(body.code).toBe("WEBSOCKET_UPGRADE_FAILED");
+});

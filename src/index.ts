@@ -217,6 +217,11 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
     port,
     routes,
 
+    error(err: Error): Response {
+      log.error("unhandled", { error: String(err) });
+      return errorJson("Internal server error", ErrorCode.INTERNAL_ERROR, 500);
+    },
+
     websocket: {
       open(ws) {
         ws.subscribe("counter");
