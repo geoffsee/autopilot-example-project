@@ -12,3 +12,7 @@ CREATE TABLE IF NOT EXISTS _webhook_deliveries (
 
 CREATE INDEX IF NOT EXISTS idx_wd_pending ON _webhook_deliveries (status, next_retry_at)
   WHERE status = 'pending';
+
+-- down:
+DROP INDEX IF EXISTS idx_wd_pending;
+DROP TABLE IF EXISTS _webhook_deliveries;
