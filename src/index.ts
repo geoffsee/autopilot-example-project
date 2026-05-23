@@ -21,6 +21,11 @@ import { writeAuditEntry, getAuditEntries } from "./audit";
 import { deliverWebhook, registerWebhook, deregisterWebhook, getWebhookUrl } from "./webhook";
 import { getRequestId, tagged } from "./request-id";
 import { createApiKey, listApiKeys, deleteApiKey } from "./api-keys";
+import { validateEnv } from "./env";
+
+if (import.meta.main) {
+  validateEnv();
+}
 
 const db = createCounterDb();
 await runMigrations(db, join(import.meta.dir, "../migrations"));
