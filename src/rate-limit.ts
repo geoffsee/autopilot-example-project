@@ -1,4 +1,4 @@
-import { ErrorCode } from "./errors";
+import { errorJson, ErrorCode } from "./errors";
 
 interface WindowState {
   count: number;
@@ -36,12 +36,11 @@ export function createRateLimiter(opts?: { max?: number; windowMs?: number }): R
 
       if (state.count >= max) {
         const retryAfterSec = Math.ceil((state.windowStart + windowMs - now) / 1000);
-        return Response.json(
-          { error: "Too Many Requests", code: ErrorCode.TOO_MANY_REQUESTS },
-          {
-            status: 429,
-            headers: { "Retry-After": String(retryAfterSec) },
-          },
+        return errorJson(
+          "Too Many Requests",
+          ErrorCode.TOO_MANY_REQUESTS,
+          429,
+          { "Retry-After": String(retryAfterSec) },
         );
       }
 
