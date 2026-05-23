@@ -22,6 +22,10 @@ import { deliverWebhook, registerWebhook, deregisterWebhook, getWebhookUrl } fro
 import { errorJson, ErrorCode } from "./errors";
 import { validateEnv } from "./env";
 
+if (import.meta.main) {
+  validateEnv();
+}
+
 const db = createCounterDb();
 await runMigrations(db, join(import.meta.dir, "../migrations"));
 
@@ -235,7 +239,6 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
 }
 
 if (import.meta.main) {
-  validateEnv();
   const server = createServer();
   log.info("server started", { url: server.url.href });
 }

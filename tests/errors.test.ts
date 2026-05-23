@@ -2,9 +2,8 @@ import { test, expect, beforeAll, afterAll } from "bun:test";
 import { Database } from "bun:sqlite";
 import { createRBAC } from "../src/auth";
 import { createRateLimiter } from "../src/rate-limit";
-import { handleCounterPost } from "../src/counter";
+import { handleCounterPost, setupCounter } from "../src/counter";
 import { createServer } from "../src/index";
-import { setupCounter } from "../src/counter";
 
 // --- Auth: structured error codes ---
 
