@@ -21,6 +21,7 @@ import { writeAuditEntry, getAuditEntries } from "./audit";
 import { deliverWebhook, registerWebhook, deregisterWebhook, getWebhookUrl } from "./webhook";
 import { getRequestId, tagged } from "./request-id";
 import { createApiKey, listApiKeys, deleteApiKey } from "./api-keys";
+import { errorJson, ErrorCode } from "./errors";
 import { validateEnv } from "./env";
 
 if (import.meta.main) {
@@ -168,7 +169,7 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
           const { name } = req.params;
           const result = resetNamedCounter(db, name);
           if (!result) {
-            return tagged(Response.json({ error: "Counter not found" }, { status: 404 }), requestId);
+            return tagged(errorJson("Counter not found", ErrorCode.COUNTER_NOT_FOUND, 404), requestId);
           }
           const actor = rbac.resolveActor(req) ?? ip;
           writeAuditEntry(db, actor, name, result.oldValue, result.value);
@@ -216,16 +217,19 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
           try {
             body = await req.json();
           } catch {
-            return tagged(Response.json({ error: "Invalid JSON" }, { status: 400 }), requestId);
+            return tagged(errorJson("Invalid JSON", ErrorCode.INVALID_JSON, 400), requestId);
           }
-          if (typeof body !== "object" || body === null || !("url" in body) || typeof (body as Record<string, unknown>).url !== "string") {
-            return tagged(Response.json({ error: "url is required" }, { status: 400 }), requestId);
+          if (typeof body !== "object" || body === null || !("url" in body)) {
+            return tagged(errorJson("url is required", ErrorCode.MISSING_FIELD, 400), requestId);
+          }
+          if (typeof (body as Record<string, unknown>).url !== "string") {
+            return tagged(errorJson("url must be a string", ErrorCode.INVALID_URL, 400), requestId);
           }
           const url = (body as Record<string, unknown>).url as string;
           const parsed = (() => { try { return new URL(url); } catch { return null; } })();
-          if (!parsed) return tagged(Response.json({ error: "Invalid URL" }, { status: 400 }), requestId);
+          if (!parsed) return tagged(errorJson("Invalid URL", ErrorCode.INVALID_URL, 400), requestId);
           if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-            return tagged(Response.json({ error: "URL must use http or https" }, { status: 400 }), requestId);
+            return tagged(errorJson("URL must use http or https", ErrorCode.INVALID_URL_SCHEME, 400), requestId);
           }
           const { name } = req.params;
           registerWebhook(db, name, url);
@@ -240,7 +244,7 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
           const { name } = req.params;
           const removed = deregisterWebhook(db, name);
           if (!removed) {
-            return tagged(Response.json({ error: "Webhook not found" }, { status: 404 }), requestId);
+            return tagged(errorJson("Webhook not found", ErrorCode.WEBHOOK_NOT_FOUND, 404), requestId);
           }
           log.info("webhook.deregistered", { counter: name, request_id: requestId });
           return tagged(Response.json({ name }), requestId);
@@ -308,8 +312,13 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
       "/ws": (req, server) => {
         if (server.upgrade(req)) return;
         const requestId = getRequestId(req);
-        return tagged(new Response("WebSocket upgrade failed", { status: 400 }), requestId);
+        return tagged(errorJson("WebSocket upgrade failed", ErrorCode.WEBSOCKET_UPGRADE_FAILED, 400), requestId);
       },
+    },
+
+    error(err: Error): Response {
+      log.error("unhandled", { error: String(err) });
+      return errorJson("Internal server error", ErrorCode.INTERNAL_ERROR, 500);
     },
 
     websocket: {

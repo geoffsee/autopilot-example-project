@@ -1,4 +1,5 @@
 import { Database } from "bun:sqlite";
+import { errorJson, ErrorCode } from "./errors";
 
 export function createCounterDb(path = "counter.db"): Database {
   return new Database(path);
@@ -103,9 +104,10 @@ export async function handleCounterPost(
     const contentType = req.headers.get("content-type") ?? "";
     if (!contentType.includes("application/json")) {
       return {
-        response: Response.json(
-          { error: "Content-Type must be application/json" },
-          { status: 400 }
+        response: errorJson(
+          "Content-Type must be application/json",
+          ErrorCode.INVALID_CONTENT_TYPE,
+          400,
         ),
       };
     }
@@ -114,11 +116,11 @@ export async function handleCounterPost(
     try {
       body = JSON.parse(text);
     } catch {
-      return { response: Response.json({ error: "Invalid JSON" }, { status: 400 }) };
+      return { response: errorJson("Invalid JSON", ErrorCode.INVALID_JSON, 400) };
     }
 
     if (typeof body !== "object" || body === null || Array.isArray(body)) {
-      return { response: Response.json({ error: "Body must be an object" }, { status: 400 }) };
+      return { response: errorJson("Body must be an object", ErrorCode.INVALID_BODY, 400) };
     }
 
     const obj = body as Record<string, unknown>;
@@ -131,9 +133,10 @@ export async function handleCounterPost(
         inc > 1_000_000
       ) {
         return {
-          response: Response.json(
-            { error: "increment must be a non-negative integer no greater than 1000000" },
-            { status: 400 }
+          response: errorJson(
+            "increment must be a non-negative integer no greater than 1000000",
+            ErrorCode.INVALID_INCREMENT,
+            400,
           ),
         };
       }
@@ -144,7 +147,9 @@ export async function handleCounterPost(
   const row = db
     .query("UPDATE counter SET value = value + ? WHERE id = 1 RETURNING value, value - ? AS old_value")
     .get(increment, increment) as { value: number; old_value: number } | null;
-  if (!row) return { response: Response.json({ error: "Counter not found" }, { status: 500 }) };
+  if (!row) {
+    return { response: errorJson("Counter not found", ErrorCode.COUNTER_NOT_FOUND, 500) };
+  }
   return {
     response: Response.json({ count: row.value }),
     count: row.value,
