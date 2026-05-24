@@ -18,7 +18,7 @@ import { log } from "./logger";
 import { rateLimiter } from "./rate-limit";
 import { createRBAC, createAuthMiddleware } from "./auth";
 import { writeAuditEntry, getAuditEntries } from "./audit";
-import { deliverWebhook, deliverWebhookRaw, registerWebhook, deregisterWebhook, getWebhookUrl, listWebhooks, enqueueWebhookDelivery, getWebhookDeliveries, processWebhookRetries } from "./webhook";
+import { deliverWebhook, registerWebhook, deregisterWebhook, getWebhookUrl, listWebhooks, enqueueWebhookDelivery, getWebhookDeliveries, processWebhookRetries } from "./webhook";
 import { errorJson, ErrorCode } from "./errors";
 import { validateEnv } from "./env";
 
@@ -165,9 +165,6 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
         if (webhookUrl) {
           const payload = { name: result.name, value: result.value, timestamp: new Date().toISOString() };
           enqueueWebhookDelivery(db, result.name, webhookUrl, payload);
-          processWebhookRetries(db, webhookDeliveryFn).catch(err => {
-            log.error("webhook.retry.background_error", { error: String(err) });
-          });
         }
         return Response.json({ name: result.name, value: result.value });
       }),
@@ -186,7 +183,7 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
         const { id } = req.params;
         const webhookUrl = getWebhookUrl(db, id);
         if (webhookUrl === null) {
-          return Response.json({ error: "Webhook not found" }, { status: 404 });
+          return errorJson("Webhook not found", ErrorCode.WEBHOOK_NOT_FOUND, 404);
         }
         const rows = getWebhookDeliveries(db, id);
         const deliveries = rows.map(r => ({
