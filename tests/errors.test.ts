@@ -168,6 +168,17 @@ test("POST /api/webhook/:name without url returns MISSING_FIELD", async () => {
   expect(body.code).toBe("MISSING_FIELD");
 });
 
+test("POST /api/webhook/:name with non-string url returns INVALID_URL", async () => {
+  const res = await fetch(`${origin}/api/webhook/test`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${TEST_TOKEN}` },
+    body: JSON.stringify({ url: 123 }),
+  });
+  expect(res.status).toBe(400);
+  const body = await res.json() as { error: string; code: string };
+  expect(body.code).toBe("INVALID_URL");
+});
+
 test("POST /api/webhook/:name with invalid URL returns INVALID_URL", async () => {
   const res = await fetch(`${origin}/api/webhook/test`, {
     method: "POST",
