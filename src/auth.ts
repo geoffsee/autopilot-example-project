@@ -1,18 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
-
-function unauthorized(): Response {
-  return new Response(JSON.stringify({ error: "Unauthorized" }), {
-    status: 401,
-    headers: { "Content-Type": "application/json" },
-  });
-}
-
-function forbidden(): Response {
-  return new Response(JSON.stringify({ error: "Forbidden" }), {
-    status: 403,
-    headers: { "Content-Type": "application/json" },
-  });
-}
+import { errorJson, ErrorCode } from "./errors";
 
 function extractBearer(req: Request): string | null {
   const header = req.headers.get("authorization") ?? "";
@@ -103,20 +90,19 @@ export function createRBAC(
   function requireWrite(req: Request): Response | null {
     if (!writeToken) return null;
     const provided = extractBearer(req);
-    if (provided === null) return unauthorized();
-    if (!tokenMatches(provided, writeToken)) return forbidden();
+    if (provided === null) return errorJson("Unauthorized", ErrorCode.UNAUTHORIZED, 401);
+    if (!tokenMatches(provided, writeToken)) return errorJson("Forbidden", ErrorCode.FORBIDDEN, 403);
     return null;
   }
 
   function requireRead(req: Request): Response | null {
     if (!readToken) return null;
     const provided = extractBearer(req);
-    if (provided === null) return unauthorized();
+    if (provided === null) return errorJson("Unauthorized", ErrorCode.UNAUTHORIZED, 401);
     if (tokenMatches(provided, readToken)) return null;
     if (writeToken && tokenMatches(provided, writeToken)) return null;
-    return forbidden();
+    return errorJson("Forbidden", ErrorCode.FORBIDDEN, 403);
   }
 
   return { requireWrite, requireRead };
 }
-
