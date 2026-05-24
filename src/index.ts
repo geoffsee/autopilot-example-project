@@ -164,9 +164,6 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
         if (webhookUrl) {
           const payload = { name: result.name, value: result.value, timestamp: new Date().toISOString() };
           enqueueWebhookDelivery(db, result.name, webhookUrl, payload);
-          processWebhookRetries(db, webhookDeliveryFn).catch(err => {
-            log.error("webhook.delivery.unhandled", { error: String(err) });
-          });
         }
         return Response.json({ name: result.name, value: result.value });
       }),
@@ -274,7 +271,7 @@ if (import.meta.main) {
   log.info("server started", { url: server.url.href });
 
   setInterval(() => {
-    processWebhookRetries(db, deliverWebhookRaw).catch(err => {
+    processWebhookRetries(db, deliverWebhook).catch(err => {
       log.error("webhook.retry.background_error", { error: String(err) });
     });
   }, 5000);
