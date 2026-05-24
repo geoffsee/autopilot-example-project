@@ -46,6 +46,7 @@ test("rate limiter 429 response has code TOO_MANY_REQUESTS", async () => {
   expect(res.status).toBe(429);
   const body = await res.json() as { error: string; code: string };
   expect(body.code).toBe("TOO_MANY_REQUESTS");
+  expect(res.headers.get("Retry-After")).toBeTruthy();
 });
 
 // --- Counter POST: structured error codes ---
