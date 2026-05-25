@@ -2,6 +2,134 @@ import { Database } from "bun:sqlite";
 import { lookup } from "node:dns/promises";
 import { log } from "./logger";
 
+// 1 initial attempt + 5 retries = 6 total; delays between consecutive failures
+const MAX_ATTEMPTS = 6;
+const BACKOFF_DELAYS_MS = [1000, 2000, 4000, 8000, 16000] as const;
+
+export interface DeliveryRow {
+  id: number;
+  webhook_id: string;
+  url: string;
+  payload: string;
+  status: string;
+  attempt_count: number;
+  next_retry_at: string | null;
+  created_at: string;
+  last_attempted_at: string | null;
+}
+
+async function deliverWebhookRaw(url: string, payload: Record<string, unknown>): Promise<void> {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(5_000),
+  });
+  if (!res.ok) throw new Error(`non-2xx: ${res.status}`);
+}
+
+export function enqueueWebhookDelivery(
+  db: Database,
+  webhookId: string,
+  url: string,
+  payload: Record<string, unknown>
+): void {
+  const now = new Date().toISOString();
+  db.run(
+    `INSERT INTO _webhook_deliveries (webhook_id, url, payload, status, attempt_count, next_retry_at, created_at)
+     VALUES (?, ?, ?, 'pending', 0, ?, ?)`,
+    [webhookId, url, JSON.stringify(payload), now, now]
+  );
+}
+
+export function getWebhookDeliveries(db: Database, webhookId: string): DeliveryRow[] {
+  return db
+    .query<DeliveryRow, [string]>(
+      `SELECT id, webhook_id, url, payload, status, attempt_count, next_retry_at, created_at, last_attempted_at
+       FROM _webhook_deliveries WHERE webhook_id = ? ORDER BY created_at DESC`
+    )
+    .all(webhookId);
+}
+
+export async function processWebhookRetries(
+  db: Database,
+  deliveryFn: (url: string, payload: Record<string, unknown>) => Promise<void>
+): Promise<void> {
+  const now = new Date().toISOString();
+  const pending = db
+    .query<DeliveryRow, [string]>(
+      `SELECT id, webhook_id, url, payload, status, attempt_count, next_retry_at, created_at, last_attempted_at
+       FROM _webhook_deliveries
+       WHERE status = 'pending' AND next_retry_at <= ?
+       ORDER BY next_retry_at ASC`
+    )
+    .all(now);
+
+  for (const delivery of pending) {
+    const newAttemptCount = delivery.attempt_count + 1;
+    const attemptedAt = new Date().toISOString();
+    let succeeded = false;
+    try {
+      await deliveryFn(delivery.url, JSON.parse(delivery.payload) as Record<string, unknown>);
+      succeeded = true;
+    } catch {
+      // handled below
+    }
+
+    if (succeeded) {
+      db.run(
+        `UPDATE _webhook_deliveries SET status = 'success', attempt_count = ?, last_attempted_at = ?, next_retry_at = NULL WHERE id = ?`,
+        [newAttemptCount, attemptedAt, delivery.id]
+      );
+      log.info("webhook.delivery.success", { webhook_id: delivery.webhook_id, attempt: newAttemptCount });
+    } else if (newAttemptCount >= MAX_ATTEMPTS) {
+      db.run(
+        `UPDATE _webhook_deliveries SET status = 'failed', attempt_count = ?, last_attempted_at = ?, next_retry_at = NULL WHERE id = ?`,
+        [newAttemptCount, attemptedAt, delivery.id]
+      );
+      log.error("webhook.delivery.exhausted", { webhook_id: delivery.webhook_id, attempts: newAttemptCount });
+    } else {
+      const delayMs = BACKOFF_DELAYS_MS[newAttemptCount - 1]!;
+      const nextRetry = new Date(Date.now() + delayMs).toISOString();
+      db.run(
+        `UPDATE _webhook_deliveries SET attempt_count = ?, last_attempted_at = ?, next_retry_at = ? WHERE id = ?`,
+        [newAttemptCount, attemptedAt, nextRetry, delivery.id]
+      );
+      log.warn("webhook.delivery.retry_scheduled", { webhook_id: delivery.webhook_id, attempt: newAttemptCount, next_retry: nextRetry });
+    }
+  }
+}
+
+// SSRF-guarded delivery: throws on DNS failure, private IP, or non-2xx response.
+// Use this as the deliveryFn for processWebhookRetries so failures are recorded correctly.
+export async function deliverWebhookChecked(url: string, payload: Record<string, unknown>): Promise<void> {
+  let hostname: string;
+  try {
+    hostname = new URL(url).hostname;
+  } catch {
+    throw new Error(`invalid webhook URL: ${url}`);
+  }
+
+  let ip4: string;
+  try {
+    const { address } = await lookup(hostname, { family: 4 });
+    ip4 = address;
+  } catch (err) {
+    throw new Error(`webhook DNS lookup failed: ${String(err)}`);
+  }
+  if (isPrivateIp(ip4)) throw new Error(`blocked private IP: ${ip4}`);
+
+  try {
+    const { address: ip6 } = await lookup(hostname, { family: 6 });
+    if (isPrivateIp(ip6)) throw new Error(`blocked private IP: ${ip6}`);
+  } catch (err) {
+    if (String(err).includes("blocked private IP")) throw err;
+    // IPv6 lookup failure is non-fatal; proceed with IPv4-verified address
+  }
+
+  await deliverWebhookRaw(url, payload);
+}
+
 export function isPrivateIp(ip: string): boolean {
   // IPv6 loopback / link-local / ULA
   if (ip === "::1") return true;
@@ -33,6 +161,22 @@ export function registerWebhook(db: Database, counterName: string, url: string):
 export function deregisterWebhook(db: Database, counterName: string): boolean {
   const result = db.run("DELETE FROM webhooks WHERE counter_name = ?", [counterName]);
   return result.changes > 0;
+}
+
+export interface WebhookRow {
+  id: string;
+  url: string;
+  events: string[];
+  created_at: string;
+}
+
+export function listWebhooks(db: Database): WebhookRow[] {
+  const rows = db
+    .query<{ counter_name: string; url: string; created_at: string }, []>(
+      "SELECT counter_name, url, created_at FROM webhooks ORDER BY created_at ASC"
+    )
+    .all();
+  return rows.map(r => ({ id: r.counter_name, url: r.url, events: ["counter.increment"], created_at: r.created_at }));
 }
 
 export function getWebhookUrl(db: Database, counterName: string): string | null {

@@ -8,6 +8,10 @@ import {
   registerWebhook,
   deregisterWebhook,
   getWebhookUrl,
+  listWebhooks,
+  enqueueWebhookDelivery,
+  getWebhookDeliveries,
+  processWebhookRetries,
 } from "../src/webhook";
 import { runMigrations } from "../src/migrate";
 
@@ -192,11 +196,14 @@ let stubServer: ReturnType<typeof Bun.serve>;
 let origin: string;
 let stubOrigin: string;
 let savedToken: string | undefined;
+let savedReadToken: string | undefined;
 const deliveries: Array<{ name: string; value: number; timestamp: string }> = [];
 
 beforeAll(() => {
   savedToken = process.env.API_TOKEN;
+  savedReadToken = process.env.READ_TOKEN;
   process.env.API_TOKEN = TEST_TOKEN;
+  process.env.READ_TOKEN = TEST_TOKEN;
 
   // Stub HTTP server to receive webhook deliveries
   stubServer = Bun.serve({
@@ -228,6 +235,11 @@ afterAll(async () => {
     delete process.env.API_TOKEN;
   } else {
     process.env.API_TOKEN = savedToken;
+  }
+  if (savedReadToken === undefined) {
+    delete process.env.READ_TOKEN;
+  } else {
+    process.env.READ_TOKEN = savedReadToken;
   }
 });
 
@@ -350,6 +362,61 @@ test("incrementing a named counter delivers webhook with {name, value, timestamp
   expect(typeof delivery.timestamp).toBe("string");
 });
 
+// --- listWebhooks unit test ---
+
+test("listWebhooks returns all registered webhooks", async () => {
+  const db = new Database(":memory:");
+  await runMigrations(db, join(import.meta.dir, "../migrations"));
+  registerWebhook(db, "alpha", "https://a.example.com/hook");
+  registerWebhook(db, "beta", "https://b.example.com/hook");
+  const rows = listWebhooks(db);
+  expect(rows).toHaveLength(2);
+  const ids = rows.map(r => r.id).sort();
+  expect(ids).toEqual(["alpha", "beta"]);
+  for (const row of rows) {
+    expect(typeof row.url).toBe("string");
+    expect(typeof row.created_at).toBe("string");
+    expect(row.events).toEqual(["counter.increment"]);
+  }
+  db.close();
+});
+
+// --- GET /api/webhooks HTTP integration test ---
+
+test("GET /api/webhooks without auth returns 401", async () => {
+  const res = await fetch(`${origin}/api/webhooks`);
+  expect(res.status).toBe(401);
+});
+
+test("GET /api/webhooks lists registered webhooks", async () => {
+  // Register two distinct webhooks
+  await fetch(`${origin}/api/webhook/list-a`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${TEST_TOKEN}` },
+    body: JSON.stringify({ url: `${stubOrigin}/hook-a` }),
+  });
+  await fetch(`${origin}/api/webhook/list-b`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${TEST_TOKEN}` },
+    body: JSON.stringify({ url: `${stubOrigin}/hook-b` }),
+  });
+
+  const res = await fetch(`${origin}/api/webhooks`, {
+    headers: { Authorization: `Bearer ${TEST_TOKEN}` },
+  });
+  expect(res.status).toBe(200);
+  const body = await res.json() as { webhooks: Array<{ id: string; url: string; events: string[]; created_at: string }> };
+  expect(Array.isArray(body.webhooks)).toBe(true);
+  const ids = body.webhooks.map(w => w.id);
+  expect(ids).toContain("list-a");
+  expect(ids).toContain("list-b");
+  for (const w of body.webhooks) {
+    expect(typeof w.url).toBe("string");
+    expect(typeof w.created_at).toBe("string");
+    expect(Array.isArray(w.events)).toBe(true);
+  }
+});
+
 test("increment still returns 200 even when webhook delivery would fail", async () => {
   // Register webhook with a URL that will fail (no server there)
   await fetch(`${origin}/api/webhook/fail-counter`, {
@@ -390,4 +457,148 @@ test("increment still returns 200 even when webhook delivery would fail", async 
   } finally {
     await serverWithFailingDelivery.stop();
   }
+});
+
+// --- Delivery queue unit tests ---
+
+test("enqueueWebhookDelivery creates a pending delivery record", async () => {
+  const db = new Database(":memory:");
+  await runMigrations(db, join(import.meta.dir, "../migrations"));
+  registerWebhook(db, "queue-test", "http://example.com/hook");
+  enqueueWebhookDelivery(db, "queue-test", "http://example.com/hook", {
+    name: "queue-test", value: 1, timestamp: "2026-01-01T00:00:00.000Z",
+  });
+  const rows = getWebhookDeliveries(db, "queue-test");
+  expect(rows).toHaveLength(1);
+  expect(rows[0]!.status).toBe("pending");
+  expect(rows[0]!.attempt_count).toBe(0);
+  expect(rows[0]!.webhook_id).toBe("queue-test");
+  db.close();
+});
+
+test("processWebhookRetries marks delivery success on first attempt", async () => {
+  const db = new Database(":memory:");
+  await runMigrations(db, join(import.meta.dir, "../migrations"));
+  registerWebhook(db, "success-test", "http://example.com/hook");
+  enqueueWebhookDelivery(db, "success-test", "http://example.com/hook", {
+    name: "success-test", value: 1, timestamp: "2026-01-01T00:00:00.000Z",
+  });
+
+  const delivered: unknown[] = [];
+  await processWebhookRetries(db, async (_url, payload) => { delivered.push(payload); });
+
+  const rows = getWebhookDeliveries(db, "success-test");
+  expect(rows[0]!.status).toBe("success");
+  expect(rows[0]!.attempt_count).toBe(1);
+  expect(delivered).toHaveLength(1);
+  db.close();
+});
+
+test("processWebhookRetries schedules retry with backoff on first failure", async () => {
+  const db = new Database(":memory:");
+  await runMigrations(db, join(import.meta.dir, "../migrations"));
+  registerWebhook(db, "retry-backoff", "http://example.com/hook");
+  enqueueWebhookDelivery(db, "retry-backoff", "http://example.com/hook", {
+    name: "retry-backoff", value: 1, timestamp: "2026-01-01T00:00:00.000Z",
+  });
+
+  const before = Date.now();
+  await processWebhookRetries(db, async () => { throw new Error("down"); });
+
+  const rows = getWebhookDeliveries(db, "retry-backoff");
+  expect(rows[0]!.status).toBe("pending");
+  expect(rows[0]!.attempt_count).toBe(1);
+  expect(rows[0]!.next_retry_at).not.toBeNull();
+  const nextRetry = new Date(rows[0]!.next_retry_at!).getTime();
+  expect(nextRetry).toBeGreaterThan(before + 500);
+  db.close();
+});
+
+test("retry progression: simulate failing endpoint and verify attempt progression", async () => {
+  const db = new Database(":memory:");
+  await runMigrations(db, join(import.meta.dir, "../migrations"));
+  registerWebhook(db, "exhaust-test", "http://example.com/hook");
+  enqueueWebhookDelivery(db, "exhaust-test", "http://example.com/hook", {
+    name: "exhaust-test", value: 1, timestamp: "2026-01-01T00:00:00.000Z",
+  });
+
+  const alwaysFail = async () => { throw new Error("endpoint down"); };
+
+  // 1 initial attempt + 5 retries = 6 total; all fail → status becomes "failed"
+  for (let attempt = 1; attempt <= 6; attempt++) {
+    // Fast-forward next_retry_at so the worker picks it up immediately
+    db.run("UPDATE _webhook_deliveries SET next_retry_at = datetime('now', '-1 second') WHERE status = 'pending'");
+    await processWebhookRetries(db, alwaysFail);
+
+    const rows = getWebhookDeliveries(db, "exhaust-test");
+    expect(rows[0]!.attempt_count).toBe(attempt);
+    if (attempt < 6) {
+      expect(rows[0]!.status).toBe("pending");
+    } else {
+      expect(rows[0]!.status).toBe("failed");
+    }
+  }
+
+  db.close();
+});
+
+test("processWebhookRetries does not pick up deliveries with future next_retry_at", async () => {
+  const db = new Database(":memory:");
+  await runMigrations(db, join(import.meta.dir, "../migrations"));
+  registerWebhook(db, "future-retry", "http://example.com/hook");
+  enqueueWebhookDelivery(db, "future-retry", "http://example.com/hook", {
+    name: "future-retry", value: 1, timestamp: "2026-01-01T00:00:00.000Z",
+  });
+
+  // Set next_retry_at far in the future (use ISO format to match enqueueWebhookDelivery)
+  const futureTime = new Date(Date.now() + 3600 * 1000).toISOString();
+  db.run("UPDATE _webhook_deliveries SET next_retry_at = ?", [futureTime]);
+
+  const delivered: unknown[] = [];
+  await processWebhookRetries(db, async (_url, p) => { delivered.push(p); });
+
+  expect(delivered).toHaveLength(0);
+  const rows = getWebhookDeliveries(db, "future-retry");
+  expect(rows[0]!.attempt_count).toBe(0); // untouched
+  db.close();
+});
+
+// --- GET /api/webhooks/:id/deliveries integration tests ---
+
+test("GET /api/webhooks/:id/deliveries without auth returns 401", async () => {
+  const res = await fetch(`${origin}/api/webhooks/some-webhook/deliveries`);
+  expect(res.status).toBe(401);
+});
+
+test("GET /api/webhooks/:id/deliveries for unknown webhook returns 404", async () => {
+  const res = await fetch(`${origin}/api/webhooks/nonexistent-xyz-abc/deliveries`, {
+    headers: { Authorization: `Bearer ${TEST_TOKEN}` },
+  });
+  expect(res.status).toBe(404);
+});
+
+test("GET /api/webhooks/:id/deliveries returns delivery history after increment", async () => {
+  await fetch(`${origin}/api/webhook/delivery-hist`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${TEST_TOKEN}` },
+    body: JSON.stringify({ url: `${stubOrigin}/hook` }),
+  });
+
+  await fetch(`${origin}/api/counter/delivery-hist/increment`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${TEST_TOKEN}` },
+  });
+
+  await new Promise(r => setTimeout(r, 150));
+
+  const res = await fetch(`${origin}/api/webhooks/delivery-hist/deliveries`, {
+    headers: { Authorization: `Bearer ${TEST_TOKEN}` },
+  });
+  expect(res.status).toBe(200);
+  const body = await res.json() as { deliveries: Array<{ id: number; status: string; attempt_count: number; webhook_id: string }> };
+  expect(Array.isArray(body.deliveries)).toBe(true);
+  expect(body.deliveries.length).toBeGreaterThan(0);
+  expect(body.deliveries[0]!.status).toBe("success");
+  expect(body.deliveries[0]!.attempt_count).toBe(1);
+  expect(body.deliveries[0]!.webhook_id).toBe("delivery-hist");
 });
