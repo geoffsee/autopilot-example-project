@@ -18,7 +18,7 @@ export interface DeliveryRow {
   last_attempted_at: string | null;
 }
 
-export async function deliverWebhookRaw(url: string, payload: Record<string, unknown>): Promise<void> {
+async function deliverWebhookRaw(url: string, payload: Record<string, unknown>): Promise<void> {
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
