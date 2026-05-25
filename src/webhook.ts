@@ -100,6 +100,36 @@ export async function processWebhookRetries(
   }
 }
 
+// SSRF-guarded delivery: throws on DNS failure, private IP, or non-2xx response.
+// Use this as the deliveryFn for processWebhookRetries so failures are recorded correctly.
+export async function deliverWebhookChecked(url: string, payload: Record<string, unknown>): Promise<void> {
+  let hostname: string;
+  try {
+    hostname = new URL(url).hostname;
+  } catch {
+    throw new Error(`invalid webhook URL: ${url}`);
+  }
+
+  let ip4: string;
+  try {
+    const { address } = await lookup(hostname, { family: 4 });
+    ip4 = address;
+  } catch (err) {
+    throw new Error(`webhook DNS lookup failed: ${String(err)}`);
+  }
+  if (isPrivateIp(ip4)) throw new Error(`blocked private IP: ${ip4}`);
+
+  try {
+    const { address: ip6 } = await lookup(hostname, { family: 6 });
+    if (isPrivateIp(ip6)) throw new Error(`blocked private IP: ${ip6}`);
+  } catch (err) {
+    if (String(err).includes("blocked private IP")) throw err;
+    // IPv6 lookup failure is non-fatal; proceed with IPv4-verified address
+  }
+
+  await deliverWebhookRaw(url, payload);
+}
+
 export function isPrivateIp(ip: string): boolean {
   // IPv6 loopback / link-local / ULA
   if (ip === "::1") return true;

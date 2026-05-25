@@ -18,7 +18,7 @@ import { log } from "./logger";
 import { rateLimiter } from "./rate-limit";
 import { createRBAC, createAuthMiddleware } from "./auth";
 import { writeAuditEntry, getAuditEntries } from "./audit";
-import { deliverWebhook, registerWebhook, deregisterWebhook, getWebhookUrl, listWebhooks, enqueueWebhookDelivery, getWebhookDeliveries, processWebhookRetries } from "./webhook";
+import { deliverWebhook, deliverWebhookChecked, registerWebhook, deregisterWebhook, getWebhookUrl, listWebhooks, enqueueWebhookDelivery, getWebhookDeliveries, processWebhookRetries } from "./webhook";
 import { errorJson, ErrorCode } from "./errors";
 import { validateEnv } from "./env";
 
@@ -165,9 +165,6 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
         if (webhookUrl) {
           const payload = { name: result.name, value: result.value, timestamp: new Date().toISOString() };
           enqueueWebhookDelivery(db, result.name, webhookUrl, payload);
-          processWebhookRetries(db, webhookDeliveryFn).catch(err => {
-            log.error("webhook.retry.background_error", { error: String(err) });
-          });
         }
         return Response.json({ name: result.name, value: result.value });
       }),
@@ -283,7 +280,7 @@ if (import.meta.main) {
   log.info("server started", { url: server.url.href });
 
   setInterval(() => {
-    processWebhookRetries(db, deliverWebhook).catch(err => {
+    processWebhookRetries(db, deliverWebhookChecked).catch(err => {
       log.error("webhook.retry.background_error", { error: String(err) });
     });
   }, 5000);
