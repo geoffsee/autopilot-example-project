@@ -33,17 +33,18 @@ Last updated: 2026-05-30
 | API | CI latency baseline | Shipped |
 | Docs | Architecture Decision Records (ADRs) | Shipped |
 
-## Open Priorities (from Strategic Review #207)
+## Active Sprint — #238: Bounded State, Atomic Operations, and Developer Discoverability
 
-| Priority | Item | Description |
-|---|---|---|
-| 1 | F5 — Pagination | Cursor/offset pagination for `/api/audit`, `/api/webhooks`, `/api/counter` |
-| 2 | C1+C2 — Delta counters | Increment/decrement by arbitrary delta |
-| 3 | F4 — Health DB probe | Extend `/api/health` with DB ping; return `{ status, db, uptime_seconds }` |
-| 4 | C9 — Bulk batch | `POST /api/counter/batch` — atomic multi-counter mutation |
-| 5 | F3 — Rate limit persistence | Persist rate-limit windows to SQLite (`_rate_limits` table) |
-| 6 | F1 — OpenAPI spec | Hand-written OpenAPI 3.0 at `/api/docs`; Swagger UI at `/api/docs/ui` |
-| 7 | P3 — Audit retention | ADR first, then scheduled purge with configurable retention window |
+| Issue | Item | Description | Status |
+|---|---|---|---|
+| [#230](https://github.com/geoffsee/autopilot-example-project/issues/230) | F5 — Pagination | Cursor/offset pagination for `/api/audit`, `/api/webhooks`, `/api/counter` | 🔴 Not Started |
+| [#231](https://github.com/geoffsee/autopilot-example-project/issues/231) | C1+C2 — Delta counters | Increment/decrement by arbitrary delta | 🔴 Not Started |
+| [#232](https://github.com/geoffsee/autopilot-example-project/issues/232) | F4 — Health DB probe | Extend `/api/health` with DB ping; return `{ status, db, uptime_seconds }` | 🔴 Not Started |
+| [#233](https://github.com/geoffsee/autopilot-example-project/issues/233) | F3 — Rate limit persistence | Persist rate-limit windows to SQLite (`_rate_limits` table) | 🔴 Not Started |
+| [#234](https://github.com/geoffsee/autopilot-example-project/issues/234) | F1 — OpenAPI spec | Hand-written OpenAPI 3.0 at `/api/docs`; Swagger UI at `/api/docs/ui` | 🔴 Not Started |
+| [#235](https://github.com/geoffsee/autopilot-example-project/issues/235) | P3-ADR — Audit retention ADR | ADR documenting retention window and compliance rationale | 🔴 Not Started |
+| [#236](https://github.com/geoffsee/autopilot-example-project/issues/236) | C9 — Bulk batch | `POST /api/counter/batch` — atomic multi-counter mutation (blocked by #231) | 🔴 Not Started |
+| [#237](https://github.com/geoffsee/autopilot-example-project/issues/237) | P3-impl — Audit retention impl | Scheduled purge with configurable retention window (blocked by #235) | 🔴 Not Started |
 
 ## Backlog (deferred)
 

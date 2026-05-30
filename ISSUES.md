@@ -24,3 +24,21 @@ The current strategic review (#207) recommends, in priority order:
 7. **P3 — Audit retention policy** (ADR then implementation)
 
 Sprint planning converts these recommendations into trackable sprint issues. Do not file individual recommendation issues here — use #207 as the single living strategic-direction artifact.
+
+## Sprint: Bounded State, Atomic Operations, and Developer Discoverability — #238
+
+**Tracker:** [#238](https://github.com/geoffsee/autopilot-example-project/issues/238)
+**Planned:** 2026-05-30
+
+### Task Dependency Hierarchy
+
+| Issue | Depends On | Depended On By | Layer | Status |
+|-------|-----------|----------------|-------|--------|
+| [#230](https://github.com/geoffsee/autopilot-example-project/issues/230) F5: Pagination for list endpoints | — | — | 0 | 🔴 Not Started |
+| [#231](https://github.com/geoffsee/autopilot-example-project/issues/231) C1+C2: Counter delta increment/decrement | — | #236 | 0 | 🔴 Not Started |
+| [#232](https://github.com/geoffsee/autopilot-example-project/issues/232) F4: Health check with DB probing | — | — | 0 | 🔴 Not Started |
+| [#233](https://github.com/geoffsee/autopilot-example-project/issues/233) F3: Rate limit state persistence | — | — | 0 | 🔴 Not Started |
+| [#234](https://github.com/geoffsee/autopilot-example-project/issues/234) F1: OpenAPI 3.0 spec at /api/docs | — | — | 0 | 🔴 Not Started |
+| [#235](https://github.com/geoffsee/autopilot-example-project/issues/235) P3-ADR: Audit retention ADR | — | #237 | 0 | 🔴 Not Started |
+| [#236](https://github.com/geoffsee/autopilot-example-project/issues/236) C9: Bulk counter batch | #231 | — | 1 | 🔴 Not Started |
+| [#237](https://github.com/geoffsee/autopilot-example-project/issues/237) P3-impl: Audit retention implementation | #235 | — | 1 | 🔴 Not Started |
