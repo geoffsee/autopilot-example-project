@@ -1,4 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
+import type { Database } from "bun:sqlite";
+import { findApiKeyByToken } from "./api-keys";
 import { errorJson, ErrorCode } from "./errors";
 
 function extractBearer(req: Request): string | null {
@@ -86,13 +88,18 @@ export function createAuthMiddleware(rbac: ReturnType<typeof createRBAC>) {
 export function createRBAC(
   writeToken = process.env.API_TOKEN,
   readToken = process.env.READ_TOKEN,
+  db?: Database,
 ) {
   function requireWrite(req: Request): Response | null {
     if (!writeToken) return null;
     const provided = extractBearer(req);
     if (provided === null) return errorJson("Unauthorized", ErrorCode.UNAUTHORIZED, 401);
-    if (!tokenMatches(provided, writeToken)) return errorJson("Forbidden", ErrorCode.FORBIDDEN, 403);
-    return null;
+    if (tokenMatches(provided, writeToken)) return null;
+    if (db) {
+      const key = findApiKeyByToken(db, provided);
+      if (key?.scope === "write") return null;
+    }
+    return errorJson("Forbidden", ErrorCode.FORBIDDEN, 403);
   }
 
   function requireRead(req: Request): Response | null {
@@ -101,8 +108,21 @@ export function createRBAC(
     if (provided === null) return errorJson("Unauthorized", ErrorCode.UNAUTHORIZED, 401);
     if (tokenMatches(provided, readToken)) return null;
     if (writeToken && tokenMatches(provided, writeToken)) return null;
+    if (db) {
+      const key = findApiKeyByToken(db, provided);
+      if (key) return null;
+    }
     return errorJson("Forbidden", ErrorCode.FORBIDDEN, 403);
   }
 
-  return { requireWrite, requireRead };
+  function resolveActor(req: Request): string | null {
+    if (!db) return null;
+    const provided = extractBearer(req);
+    if (!provided) return null;
+    const key = findApiKeyByToken(db, provided);
+    if (!key) return null;
+    return `key:${key.name}`;
+  }
+
+  return { requireWrite, requireRead, resolveActor };
 }
