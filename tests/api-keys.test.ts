@@ -311,8 +311,8 @@ describe("Audit log actor attribution", () => {
     const auditRes = await fetch(`${baseUrl}/api/audit?counter=${counterName}`, {
       headers: authHeaders(),
     });
-    const body = (await auditRes.json()) as { entries: Array<{ actor: string }> };
-    expect(body.entries.length).toBeGreaterThan(0);
-    expect(body.entries[0]!.actor).toBe(`key:${name}`);
+    const body = (await auditRes.json()) as { items: Array<{ actor: string }>; next_cursor: string | null };
+    expect(body.items.length).toBeGreaterThan(0);
+    expect(body.items[0]!.actor).toBe(`key:${name}`);
   });
 });

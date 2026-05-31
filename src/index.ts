@@ -18,7 +18,7 @@ import { log } from "./logger";
 import { rateLimiter } from "./rate-limit";
 import { createRBAC } from "./auth";
 import { writeAuditEntry, getAuditEntries } from "./audit";
-import { deliverWebhook, deliverWebhookChecked, registerWebhook, deregisterWebhook, getWebhookUrl, listWebhooks, enqueueWebhookDelivery, getWebhookDeliveries, processWebhookRetries } from "./webhook";
+import { deliverWebhook, deliverWebhookChecked, registerWebhook, deregisterWebhook, getWebhookUrl, listWebhooks, listWebhooksPaginated, enqueueWebhookDelivery, getWebhookDeliveries, processWebhookRetries } from "./webhook";
 import { getRequestId, tagged } from "./request-id";
 import { createApiKey, listApiKeys, deleteApiKey } from "./api-keys";
 import { errorJson, ErrorCode } from "./errors";
@@ -32,6 +32,26 @@ const db = createCounterDb();
 await runMigrations(db, join(import.meta.dir, "../migrations"));
 
 type WebhookDeliveryFn = (url: string, payload: Record<string, unknown>) => Promise<void>;
+
+function parsePaginationParams(url: URL): { limit: number; offset: number } {
+  const cursorRaw = url.searchParams.get("cursor");
+  const offsetRaw = url.searchParams.get("offset");
+  let offset = 0;
+  if (cursorRaw !== null) {
+    const n = parseInt(cursorRaw, 10);
+    if (Number.isFinite(n) && n >= 0) offset = n;
+  } else if (offsetRaw !== null) {
+    const n = parseInt(offsetRaw, 10);
+    if (Number.isFinite(n) && n >= 0) offset = n;
+  }
+  const limitRaw = parseInt(url.searchParams.get("limit") ?? "", 10);
+  const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 100) : 100;
+  return { limit, offset };
+}
+
+function makeNextCursor(offset: number, limit: number, count: number): string | null {
+  return count === limit ? String(offset + limit) : null;
+}
 
 export function createServer(port?: number, opts: { webhookDelivery?: WebhookDeliveryFn } = {}) {
   const webhookDeliveryFn: WebhookDeliveryFn = opts.webhookDelivery ?? deliverWebhook;
@@ -85,7 +105,14 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
           const url = new URL(req.url);
           const prefix = url.searchParams.get("prefix");
           if (prefix !== null) {
-            return tagged(Response.json(getCountersByPrefix(db, prefix)), requestId);
+            const { limit, offset } = parsePaginationParams(url);
+            const result = getCountersByPrefix(db, prefix, { limit, offset });
+            return tagged(Response.json({
+              items: result.counters,
+              next_cursor: makeNextCursor(offset, limit, result.counters.length),
+              prefix: result.prefix,
+              total: result.total,
+            }), requestId);
           }
           return tagged(Response.json({ count: getCount(db) }), requestId);
         },
@@ -137,12 +164,11 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
           if (authErr) return tagged(authErr, requestId);
           const url = new URL(req.url);
           const counter = url.searchParams.get("counter") ?? undefined;
-          const limitRaw = parseInt(url.searchParams.get("limit") ?? "", 10);
-          const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 1000) : 50;
-          const offsetRaw = parseInt(url.searchParams.get("offset") ?? "", 10);
-          const offset = Number.isFinite(offsetRaw) && offsetRaw >= 0 ? offsetRaw : 0;
+          const { limit, offset } = parsePaginationParams(url);
+          const items = getAuditEntries(db, { counter, limit, offset });
           return tagged(Response.json({
-            entries: getAuditEntries(db, { counter, limit, offset }),
+            items,
+            next_cursor: makeNextCursor(offset, limit, items.length),
           }), requestId);
         },
       },
@@ -258,7 +284,13 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
           trackRequest("/api/webhooks", "GET");
           const authErr = rbac.requireRead(req);
           if (authErr) return tagged(authErr, requestId);
-          return tagged(Response.json({ webhooks: listWebhooks(db) }), requestId);
+          const url = new URL(req.url);
+          const { limit, offset } = parsePaginationParams(url);
+          const items = listWebhooksPaginated(db, { limit, offset });
+          return tagged(Response.json({
+            items,
+            next_cursor: makeNextCursor(offset, limit, items.length),
+          }), requestId);
         },
       },
 
