@@ -438,6 +438,7 @@
       }
     },
     "/api/counter/history": {
+      "x-router-priority": "static path takes precedence over /api/counter/{name} at runtime",
       "get": {
         "summary": "Counter activity history",
         "description": "Returns recent counter activity entries (alias of /api/activity).",
