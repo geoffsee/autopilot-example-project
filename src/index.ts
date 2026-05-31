@@ -15,7 +15,7 @@ import { runMigrations } from "./migrate";
 import { handleHealthGet } from "./health";
 import { handleMetricsGet, trackRequest } from "./metrics";
 import { log } from "./logger";
-import { rateLimiter } from "./rate-limit";
+import { createRateLimiter } from "./rate-limit";
 import { createRBAC } from "./auth";
 import { writeAuditEntry, getAuditEntries } from "./audit";
 import { deliverWebhook, deliverWebhookChecked, registerWebhook, deregisterWebhook, getWebhookUrl, listWebhooksPaginated, enqueueWebhookDelivery, getWebhookDeliveries, processWebhookRetries } from "./webhook";
@@ -54,6 +54,7 @@ if (import.meta.main) {
 
 const db = createCounterDb();
 await runMigrations(db, join(import.meta.dir, "../migrations"));
+const rateLimiter = createRateLimiter({ db });
 
 type WebhookDeliveryFn = (url: string, payload: Record<string, unknown>) => Promise<void>;
 
