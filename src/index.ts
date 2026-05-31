@@ -6,7 +6,6 @@ import {
   getCount,
   handleCounterPost,
   getNamedCounter,
-  incrementNamedCounterTracked,
   incrementNamedCounterByDelta,
   decrementNamedCounterByDelta,
   getCountersByPrefix,
@@ -304,6 +303,14 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
           const result = decrementNamedCounterByDelta(db, req.params.name, parsed.delta);
           const actor = rbac.resolveActor(req) ?? ip;
           writeAuditEntry(db, actor, req.params.name, result.oldValue, result.value, result.delta);
+          const webhookUrl = getWebhookUrl(db, result.name);
+          if (webhookUrl) {
+            const payload = { name: result.name, value: result.value, timestamp: new Date().toISOString() };
+            enqueueWebhookDelivery(db, result.name, webhookUrl, payload);
+            processWebhookRetries(db, webhookDeliveryFn).catch(err => {
+              log.error("webhook.delivery.unhandled", { error: String(err), request_id: requestId });
+            });
+          }
           return tagged(Response.json({ name: result.name, value: result.value }), requestId);
         },
       },
