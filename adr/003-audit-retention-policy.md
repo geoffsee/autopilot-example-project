@@ -30,9 +30,9 @@ Both tables are treated identically — there is no operational reason to retain
 Retain rows in `_audit` and `_webhook_deliveries` for **90 days**, measured from the record's creation timestamp (`_audit.timestamp` and `_webhook_deliveries.created_at`).
 
 - Rows older than 90 days are eligible for deletion.
-- Deletion is performed by a periodic background job (scheduled SQL `DELETE WHERE timestamp < now - 90d`) executed on a configurable interval (default: once per hour). No rows are deleted at read time.
+- Deletion is performed by a periodic background job (scheduled SQL `DELETE WHERE timestamp < now - 90d`) executed on a fixed hourly interval. No rows are deleted at read time.
 - The retention window is configurable via an environment variable `AUDIT_RETENTION_DAYS` (default `90`) so operators can narrow or widen the window without a code deploy. Values below `7` are rejected at startup to prevent accidental mass deletion.
-- `_webhook_deliveries` rows are only deleted once their `status` is terminal (`delivered` or `failed`); pending and in-flight rows are never eligible regardless of age.
+- `_webhook_deliveries` rows are only deleted once their `status` is terminal (`success` or `failed`); pending and in-flight rows are never eligible regardless of age.
 - No archival export to cold storage is performed in this phase. If compliance requirements later mandate long-term retention, an export-before-delete step should be added without changing this ADR's core retention window.
 
 ## Consequences
