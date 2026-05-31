@@ -11,6 +11,8 @@ import {
   decrementNamedCounterByDelta,
   getCountersByPrefix,
   resetNamedCounter,
+  batchCounterOperations,
+  type BatchOperation,
 } from "./counter";
 import { logActivity, getRecentActivity } from "./activity";
 import { runMigrations } from "./migrate";
@@ -175,6 +177,53 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
           return tagged(Response.json({
             entries: getAuditEntries(db, { counter, limit, offset }),
           }), requestId);
+        },
+      },
+
+      "/api/counter/batch": {
+        async POST(req, server) {
+          const requestId = getRequestId(req);
+          trackRequest("/api/counter/batch", "POST");
+          const authErr = rbac.requireWrite(req);
+          if (authErr) return tagged(authErr, requestId);
+
+          let body: unknown;
+          try {
+            body = await req.json();
+          } catch {
+            return tagged(errorJson("Invalid JSON", ErrorCode.INVALID_JSON, 400), requestId);
+          }
+
+          if (typeof body !== "object" || body === null || Array.isArray(body)) {
+            return tagged(errorJson("Body must be an object", ErrorCode.INVALID_BODY, 400), requestId);
+          }
+
+          const obj = body as Record<string, unknown>;
+          if (!Array.isArray(obj.operations)) {
+            return tagged(errorJson("operations must be an array", ErrorCode.INVALID_BODY, 400), requestId);
+          }
+
+          const ops = obj.operations as unknown[];
+          if (ops.length > 100) {
+            return tagged(errorJson("Batch size exceeds maximum of 100", ErrorCode.BATCH_TOO_LARGE, 400), requestId);
+          }
+
+          for (let i = 0; i < ops.length; i++) {
+            const op = ops[i];
+            if (typeof op !== "object" || op === null || Array.isArray(op)) {
+              return tagged(errorJson(`Operation at index ${i} must be an object`, ErrorCode.INVALID_BODY, 400), requestId);
+            }
+            const { name, delta } = op as Record<string, unknown>;
+            if (typeof name !== "string" || !name.trim()) {
+              return tagged(errorJson(`Operation at index ${i} has invalid name`, ErrorCode.INVALID_BODY, 400), requestId);
+            }
+            if (typeof delta !== "number" || !Number.isInteger(delta) || delta === 0) {
+              return tagged(errorJson(`Operation at index ${i} has invalid delta (must be a non-zero integer)`, ErrorCode.INVALID_DELTA, 400), requestId);
+            }
+          }
+
+          const results = batchCounterOperations(db, ops as BatchOperation[]);
+          return tagged(Response.json({ results }), requestId);
         },
       },
 

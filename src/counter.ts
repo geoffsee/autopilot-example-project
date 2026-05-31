@@ -117,6 +117,34 @@ export function decrementNamedCounterByDelta(
   return { name, value: row?.value ?? 0, oldValue: row?.old_value ?? 0, delta: -delta };
 }
 
+export interface BatchOperation {
+  name: string;
+  delta: number;
+}
+
+export interface BatchResult {
+  name: string;
+  value: number;
+}
+
+export function batchCounterOperations(
+  db: Database,
+  operations: BatchOperation[]
+): BatchResult[] {
+  const results: BatchResult[] = [];
+  const txn = db.transaction(() => {
+    for (const op of operations) {
+      db.run(`INSERT OR IGNORE INTO counters (name, value) VALUES (?, 0)`, [op.name]);
+      const row = db.query<{ value: number }, [number, string]>(
+        "UPDATE counters SET value = value + ? WHERE name = ? RETURNING value"
+      ).get(op.delta, op.name);
+      results.push({ name: op.name, value: row?.value ?? 0 });
+    }
+  });
+  txn();
+  return results;
+}
+
 export async function handleCounterPost(
   req: Request,
   db: Database
