@@ -45,10 +45,7 @@ export function createRateLimiter(opts?: { max?: number; windowMs?: number; db?:
       const state = store.get(ip);
 
       if (!state || now - state.windowStart >= windowMs) {
-        if (state) {
-          store.delete(ip);
-          db?.run("DELETE FROM _rate_limits WHERE ip = ?", [ip]);
-        }
+        if (state) store.delete(ip);
         store.set(ip, { count: 1, windowStart: now });
         db?.run(
           "INSERT OR REPLACE INTO _rate_limits (ip, count, window_start) VALUES (?, ?, ?)",
