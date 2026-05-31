@@ -23,6 +23,30 @@ import { getRequestId, tagged } from "./request-id";
 import { createApiKey, listApiKeys, deleteApiKey } from "./api-keys";
 import { errorJson, ErrorCode } from "./errors";
 import { validateEnv } from "./env";
+import openApiSpec from "./openapi.json" with { type: "json" };
+
+const swaggerUiHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Counter API – Swagger UI</title>
+<link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.18.2/swagger-ui.css"
+  integrity="sha384-rcbEi6xgdPk0iWkAQzT2F3FeBJXdG+ydrawGlfHAFIZG7wU6aKbQaRewysYpmrlW" crossorigin="anonymous"/>
+</head>
+<body>
+<div id="swagger-ui"></div>
+<script src="https://unpkg.com/swagger-ui-dist@5.18.2/swagger-ui-bundle.js"
+  integrity="sha384-NXtFPpN61oWCuN4D42K6Zd5Rt2+uxeIT36R7kpXBuY9tLnZorzrJ4ykpqwJfgjpZ" crossorigin="anonymous"></script>
+<script>
+window.onload = () => {
+  SwaggerUIBundle({ url: '/api/docs', dom_id: '#swagger-ui',
+    presets: [SwaggerUIBundle.presets.apis, SwaggerUIBundle.SwaggerUIStandalonePreset],
+    layout: 'BaseLayout' });
+};
+</script>
+</body>
+</html>`;
 
 if (import.meta.main) {
   validateEnv();
@@ -345,6 +369,20 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
           }
           log.info("api_key.deleted", { id, request_id: requestId });
           return tagged(Response.json({ id }), requestId);
+        },
+      },
+
+      "/api/docs": {
+        GET(req) {
+          const requestId = getRequestId(req);
+          return tagged(Response.json(openApiSpec), requestId);
+        },
+      },
+
+      "/api/docs/ui": {
+        GET(req) {
+          const requestId = getRequestId(req);
+          return tagged(new Response(swaggerUiHtml, { headers: { "Content-Type": "text/html; charset=utf-8" } }), requestId);
         },
       },
 
