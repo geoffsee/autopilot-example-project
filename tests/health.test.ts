@@ -2,7 +2,7 @@ import { test, expect, beforeEach, afterEach } from "bun:test";
 import { Database } from "bun:sqlite";
 import { handleHealthGet } from "../src/health";
 
-type HealthBody = { status: string; db: string; uptime_seconds: number };
+type HealthBody = { status: "ok" | "degraded"; db: "ok" | "error"; uptime_seconds: number };
 
 let db: Database;
 
