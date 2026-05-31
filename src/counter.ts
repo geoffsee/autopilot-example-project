@@ -93,6 +93,30 @@ export function incrementNamedCounterTracked(
   return { name, value: row?.value ?? 0, oldValue: row?.old_value ?? 0 };
 }
 
+export function incrementNamedCounterByDelta(
+  db: Database,
+  name: string,
+  delta: number
+): { name: string; value: number; oldValue: number; delta: number } {
+  db.run(`INSERT OR IGNORE INTO counters (name, value) VALUES (?, 0)`, [name]);
+  const row = db.query<{ value: number; old_value: number }, [number, string, number]>(
+    "UPDATE counters SET value = value + ? WHERE name = ? RETURNING value, value - ? AS old_value"
+  ).get(delta, name, delta);
+  return { name, value: row?.value ?? 0, oldValue: row?.old_value ?? 0, delta };
+}
+
+export function decrementNamedCounterByDelta(
+  db: Database,
+  name: string,
+  delta: number
+): { name: string; value: number; oldValue: number; delta: number } {
+  db.run(`INSERT OR IGNORE INTO counters (name, value) VALUES (?, 0)`, [name]);
+  const row = db.query<{ value: number; old_value: number }, [number, string, number]>(
+    "UPDATE counters SET value = value - ? WHERE name = ? RETURNING value, value + ? AS old_value"
+  ).get(delta, name, delta);
+  return { name, value: row?.value ?? 0, oldValue: row?.old_value ?? 0, delta: -delta };
+}
+
 export async function handleCounterPost(
   req: Request,
   db: Database

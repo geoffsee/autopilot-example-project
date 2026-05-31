@@ -7,6 +7,8 @@ import {
   handleCounterPost,
   getNamedCounter,
   incrementNamedCounterTracked,
+  incrementNamedCounterByDelta,
+  decrementNamedCounterByDelta,
   getCountersByPrefix,
   resetNamedCounter,
 } from "./counter";
@@ -30,6 +32,35 @@ if (import.meta.main) {
 
 const db = createCounterDb();
 await runMigrations(db, join(import.meta.dir, "../migrations"));
+
+async function parseDeltaBody(req: Request): Promise<{ delta: number } | Response> {
+  const text = await req.text();
+  if (!text.trim()) return { delta: 1 };
+  const contentType = req.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) {
+    return errorJson("Content-Type must be application/json", ErrorCode.INVALID_CONTENT_TYPE, 400);
+  }
+  let body: unknown;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    return errorJson("Invalid JSON", ErrorCode.INVALID_JSON, 400);
+  }
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    return errorJson("Body must be an object", ErrorCode.INVALID_BODY, 400);
+  }
+  const obj = body as Record<string, unknown>;
+  if (!("delta" in obj)) return { delta: 1 };
+  const d = obj.delta;
+  if (typeof d !== "number" || !Number.isInteger(d) || d < 1 || d > 1_000_000) {
+    return errorJson(
+      "delta must be a positive integer no greater than 1000000",
+      ErrorCode.INVALID_DELTA,
+      400,
+    );
+  }
+  return { delta: d };
+}
 
 type WebhookDeliveryFn = (url: string, payload: Record<string, unknown>) => Promise<void>;
 
@@ -193,9 +224,11 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
           const ip = server.requestIP(req)?.address ?? "unknown";
           const limited = rateLimiter(ip);
           if (limited) return tagged(limited, requestId);
-          const result = incrementNamedCounterTracked(db, req.params.name);
+          const parsed = await parseDeltaBody(req);
+          if (parsed instanceof Response) return tagged(parsed, requestId);
+          const result = incrementNamedCounterByDelta(db, req.params.name, parsed.delta);
           const actor = rbac.resolveActor(req) ?? ip;
-          writeAuditEntry(db, actor, req.params.name, result.oldValue, result.value);
+          writeAuditEntry(db, actor, req.params.name, result.oldValue, result.value, result.delta);
           const webhookUrl = getWebhookUrl(db, result.name);
           if (webhookUrl) {
             const payload = { name: result.name, value: result.value, timestamp: new Date().toISOString() };
@@ -204,6 +237,24 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
               log.error("webhook.delivery.unhandled", { error: String(err), request_id: requestId });
             });
           }
+          return tagged(Response.json({ name: result.name, value: result.value }), requestId);
+        },
+      },
+
+      "/api/counter/:name/decrement": {
+        async POST(req, server) {
+          const requestId = getRequestId(req);
+          trackRequest("/api/counter/:name/decrement", "POST");
+          const authErr = rbac.requireWrite(req);
+          if (authErr) return tagged(authErr, requestId);
+          const ip = server.requestIP(req)?.address ?? "unknown";
+          const limited = rateLimiter(ip);
+          if (limited) return tagged(limited, requestId);
+          const parsed = await parseDeltaBody(req);
+          if (parsed instanceof Response) return tagged(parsed, requestId);
+          const result = decrementNamedCounterByDelta(db, req.params.name, parsed.delta);
+          const actor = rbac.resolveActor(req) ?? ip;
+          writeAuditEntry(db, actor, req.params.name, result.oldValue, result.value, result.delta);
           return tagged(Response.json({ name: result.name, value: result.value }), requestId);
         },
       },
