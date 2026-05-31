@@ -18,7 +18,7 @@ import { runMigrations } from "./migrate";
 import { handleHealthGet } from "./health";
 import { handleMetricsGet, trackRequest } from "./metrics";
 import { log } from "./logger";
-import { rateLimiter } from "./rate-limit";
+import { createRateLimiter } from "./rate-limit";
 import { createRBAC } from "./auth";
 import { writeAuditEntry, getAuditEntries } from "./audit";
 import { deliverWebhook, deliverWebhookChecked, registerWebhook, deregisterWebhook, getWebhookUrl, listWebhooks, enqueueWebhookDelivery, getWebhookDeliveries, processWebhookRetries } from "./webhook";
@@ -57,6 +57,7 @@ if (import.meta.main) {
 
 const db = createCounterDb();
 await runMigrations(db, join(import.meta.dir, "../migrations"));
+const rateLimiter = createRateLimiter({ db });
 
 async function parseDeltaBody(req: Request): Promise<{ delta: number } | Response> {
   const text = await req.text();
