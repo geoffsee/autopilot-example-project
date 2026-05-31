@@ -18,7 +18,7 @@ import { log } from "./logger";
 import { rateLimiter } from "./rate-limit";
 import { createRBAC } from "./auth";
 import { writeAuditEntry, getAuditEntries } from "./audit";
-import { deliverWebhook, deliverWebhookChecked, registerWebhook, deregisterWebhook, getWebhookUrl, listWebhooks, listWebhooksPaginated, enqueueWebhookDelivery, getWebhookDeliveries, processWebhookRetries } from "./webhook";
+import { deliverWebhook, deliverWebhookChecked, registerWebhook, deregisterWebhook, getWebhookUrl, listWebhooksPaginated, enqueueWebhookDelivery, getWebhookDeliveries, processWebhookRetries } from "./webhook";
 import { getRequestId, tagged } from "./request-id";
 import { createApiKey, listApiKeys, deleteApiKey } from "./api-keys";
 import { errorJson, ErrorCode } from "./errors";
@@ -50,6 +50,7 @@ function parsePaginationParams(url: URL): { limit: number; offset: number } {
 }
 
 function makeNextCursor(offset: number, limit: number, count: number): string | null {
+  // Returns a cursor when a full page was returned; clients may see one trailing empty page.
   return count === limit ? String(offset + limit) : null;
 }
 
