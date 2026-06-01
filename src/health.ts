@@ -1,7 +1,4 @@
 import { Database } from "bun:sqlite";
-import pkg from "../package.json" with { type: "json" };
-
-const VERSION = pkg.version;
 
 export function handleHealthGet(db: Database): Response {
   let dbStatus: "ok" | "error" = "ok";
@@ -11,11 +8,12 @@ export function handleHealthGet(db: Database): Response {
     dbStatus = "error";
   }
 
+  const status = dbStatus === "ok" ? "ok" : "degraded";
   return Response.json(
     {
-      uptime: process.uptime(),
+      status,
       db: dbStatus,
-      version: VERSION,
+      uptime_seconds: process.uptime(),
     },
     { status: dbStatus === "ok" ? 200 : 503 }
   );
