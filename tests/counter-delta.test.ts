@@ -210,3 +210,43 @@ test("POST /api/counter/:name/decrement with delta=-5 returns 400", async () => 
   });
   expect(res.status).toBe(400);
 });
+
+// --- Webhook delivery on decrement ---
+
+test("POST /api/counter/:name/decrement triggers webhook delivery", async () => {
+  const delivered: Array<{ name: string; value: number; timestamp: string }> = [];
+  const webhookServer = createServer(0, {
+    async webhookDelivery(_url, payload) {
+      delivered.push(payload as { name: string; value: number; timestamp: string });
+    },
+  });
+  try {
+    const wOrigin = webhookServer.url.origin;
+    const name = `webhook-decr-${Date.now()}`;
+
+    await fetch(`${wOrigin}/api/counter/${name}/increment`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ delta: 5 }),
+    });
+
+    const regRes = await fetch(`${wOrigin}/api/webhook/${name}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: "http://example.com/hook" }),
+    });
+    expect(regRes.status).toBe(201);
+
+    const res = await fetch(`${wOrigin}/api/counter/${name}/decrement`, { method: "POST" });
+    expect(res.status).toBe(200);
+
+    await new Promise(r => setTimeout(r, 100));
+
+    expect(delivered).toHaveLength(1);
+    expect(delivered[0]!.name).toBe(name);
+    expect(delivered[0]!.value).toBe(4);
+    expect(typeof delivered[0]!.timestamp).toBe("string");
+  } finally {
+    await webhookServer.stop();
+  }
+});
