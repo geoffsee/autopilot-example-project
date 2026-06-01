@@ -148,10 +148,10 @@ test("audit history stores positive delta for increment", async () => {
   });
   const auditRes = await fetch(`${origin}/api/audit?counter=${name}`);
   expect(auditRes.status).toBe(200);
-  const audit = await auditRes.json() as { entries: Array<{ delta: number | null; new_value: number }> };
-  expect(audit.entries).toHaveLength(1);
-  expect(audit.entries[0]!.delta).toBe(7);
-  expect(audit.entries[0]!.new_value).toBe(7);
+  const audit = await auditRes.json() as { items: Array<{ delta: number | null; new_value: number }> };
+  expect(audit.items).toHaveLength(1);
+  expect(audit.items[0]!.delta).toBe(7);
+  expect(audit.items[0]!.new_value).toBe(7);
 });
 
 test("audit history stores negative delta for decrement", async () => {
@@ -163,10 +163,10 @@ test("audit history stores negative delta for decrement", async () => {
   });
   const auditRes = await fetch(`${origin}/api/audit?counter=${name}`);
   expect(auditRes.status).toBe(200);
-  const audit = await auditRes.json() as { entries: Array<{ delta: number | null; new_value: number }> };
-  expect(audit.entries).toHaveLength(1);
-  expect(audit.entries[0]!.delta).toBe(-3);
-  expect(audit.entries[0]!.new_value).toBe(-3);
+  const audit = await auditRes.json() as { items: Array<{ delta: number | null; new_value: number }> };
+  expect(audit.items).toHaveLength(1);
+  expect(audit.items[0]!.delta).toBe(-3);
+  expect(audit.items[0]!.new_value).toBe(-3);
 });
 
 // --- Validation ---
