@@ -22,7 +22,8 @@ import { deliverWebhook, deliverWebhookChecked, registerWebhook, deregisterWebho
 import { getRequestId, tagged } from "./request-id";
 import { createApiKey, listApiKeys, deleteApiKey } from "./api-keys";
 import { errorJson, ErrorCode } from "./errors";
-import { validateEnv } from "./env";
+import { validateEnv, getRetentionDays } from "./env";
+import { startRetentionJob } from "./retention";
 import openApiSpec from "./openapi.json" with { type: "json" };
 
 const swaggerUiHtml = `<!DOCTYPE html>
@@ -476,4 +477,8 @@ if (import.meta.main) {
       log.error("webhook.retry.background_error", { error: String(err) });
     });
   }, 5000);
+
+  const retentionDays = getRetentionDays();
+  startRetentionJob(db, retentionDays, 60 * 60 * 1000);
+  log.info("retention.job.started", { retention_days: retentionDays, interval_ms: 60 * 60 * 1000 });
 }
