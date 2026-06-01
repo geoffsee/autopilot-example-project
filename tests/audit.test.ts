@@ -77,13 +77,14 @@ afterAll(async () => {
   await server.stop();
 });
 
-test("GET /api/audit returns { entries: [] } for a fresh counter", async () => {
+test("GET /api/audit returns { items: [] } for a fresh counter", async () => {
   const freshName = `audit-init-${Date.now()}`;
   const res = await fetch(`${baseUrl}/api/audit?counter=${freshName}`);
   expect(res.status).toBe(200);
-  const body = (await res.json()) as { entries: unknown[] };
-  expect(Array.isArray(body.entries)).toBe(true);
-  expect(body.entries.length).toBe(0);
+  const body = (await res.json()) as { items: unknown[]; next_cursor: string | null };
+  expect(Array.isArray(body.items)).toBe(true);
+  expect(body.items.length).toBe(0);
+  expect(body.next_cursor).toBeNull();
 });
 
 test("audit row appears after named counter increment", async () => {
@@ -92,10 +93,11 @@ test("audit row appears after named counter increment", async () => {
   const res = await fetch(`${baseUrl}/api/audit?counter=${name}`);
   expect(res.status).toBe(200);
   const body = (await res.json()) as {
-    entries: Array<{ counter_name: string; old_value: number; new_value: number }>;
+    items: Array<{ counter_name: string; old_value: number; new_value: number }>;
+    next_cursor: string | null;
   };
-  expect(body.entries.length).toBe(1);
-  const row = body.entries[0]!;
+  expect(body.items.length).toBe(1);
+  const row = body.items[0]!;
   expect(row.counter_name).toBe(name);
   expect(row.old_value).toBe(0);
   expect(row.new_value).toBe(1);
@@ -110,13 +112,14 @@ test("audit row appears after named counter reset (C7)", async () => {
   const res = await fetch(`${baseUrl}/api/audit?counter=${name}`);
   expect(res.status).toBe(200);
   const body = (await res.json()) as {
-    entries: Array<{ counter_name: string; old_value: number; new_value: number }>;
+    items: Array<{ counter_name: string; old_value: number; new_value: number }>;
+    next_cursor: string | null;
   };
   // 2 increments + 1 reset
-  expect(body.entries.length).toBe(3);
+  expect(body.items.length).toBe(3);
   // Most recent is reset (new_value = 0)
-  expect(body.entries[0]!.new_value).toBe(0);
-  expect(body.entries[0]!.old_value).toBe(2);
+  expect(body.items[0]!.new_value).toBe(0);
+  expect(body.items[0]!.old_value).toBe(2);
 });
 
 test("GET /api/audit?counter=:name filters by counter name", async () => {
@@ -126,7 +129,7 @@ test("GET /api/audit?counter=:name filters by counter name", async () => {
   await fetch(`${baseUrl}/api/counter/${nameB}/increment`, { method: "POST" });
 
   const res = await fetch(`${baseUrl}/api/audit?counter=${nameA}`);
-  const body = (await res.json()) as { entries: Array<{ counter_name: string }> };
-  expect(body.entries.length).toBeGreaterThan(0);
-  expect(body.entries.every((e) => e.counter_name === nameA)).toBe(true);
+  const body = (await res.json()) as { items: Array<{ counter_name: string }>; next_cursor: string | null };
+  expect(body.items.length).toBeGreaterThan(0);
+  expect(body.items.every((e) => e.counter_name === nameA)).toBe(true);
 });
