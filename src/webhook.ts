@@ -179,6 +179,19 @@ export function listWebhooks(db: Database): WebhookRow[] {
   return rows.map(r => ({ id: r.counter_name, url: r.url, events: ["counter.increment"], created_at: r.created_at }));
 }
 
+export function listWebhooksPaginated(
+  db: Database,
+  opts: { limit?: number; offset?: number } = {}
+): WebhookRow[] {
+  const { limit = 100, offset = 0 } = opts;
+  const rows = db
+    .query<{ counter_name: string; url: string; created_at: string }, [number, number]>(
+      "SELECT counter_name, url, created_at FROM webhooks ORDER BY created_at ASC LIMIT ? OFFSET ?"
+    )
+    .all(limit, offset);
+  return rows.map(r => ({ id: r.counter_name, url: r.url, events: ["counter.increment"], created_at: r.created_at }));
+}
+
 export function getWebhookUrl(db: Database, counterName: string): string | null {
   const row = db
     .query<{ url: string }, [string]>("SELECT url FROM webhooks WHERE counter_name = ?")

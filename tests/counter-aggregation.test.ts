@@ -71,10 +71,11 @@ afterAll(async () => {
 test("GET /api/counter?prefix= returns empty result for unknown prefix (200, not 404)", async () => {
   const res = await fetch(`${server.url.origin}/api/counter?prefix=nonexistent`);
   expect(res.status).toBe(200);
-  const body = await res.json() as { prefix: string; total: number; counters: unknown[] };
+  const body = await res.json() as { prefix: string; total: number; items: unknown[]; next_cursor: string | null };
   expect(body.prefix).toBe("nonexistent");
   expect(body.total).toBe(0);
-  expect(body.counters).toEqual([]);
+  expect(body.items).toEqual([]);
+  expect(body.next_cursor).toBeNull();
 });
 
 test("GET /api/counter?prefix= aggregates multiple matching counters", async () => {
@@ -92,13 +93,13 @@ test("GET /api/counter?prefix= aggregates multiple matching counters", async () 
 
   const res = await fetch(`${server.url.origin}/api/counter?prefix=${prefix}`);
   expect(res.status).toBe(200);
-  const body = await res.json() as { prefix: string; total: number; counters: { name: string; value: number }[] };
+  const body = await res.json() as { prefix: string; total: number; items: { name: string; value: number }[]; next_cursor: string | null };
   expect(body.prefix).toBe(prefix);
   expect(body.total).toBe(initialTotal + 3);
-  expect(body.counters).toHaveLength(2);
-  const cx = body.counters.find(c => c.name === `${prefix}.x`);
+  expect(body.items).toHaveLength(2);
+  const cx = body.items.find(c => c.name === `${prefix}.x`);
   expect(cx?.value).toBe(2);
-  const cy = body.counters.find(c => c.name === `${prefix}.y`);
+  const cy = body.items.find(c => c.name === `${prefix}.y`);
   expect(cy?.value).toBe(1);
 });
 

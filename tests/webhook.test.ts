@@ -405,12 +405,13 @@ test("GET /api/webhooks lists registered webhooks", async () => {
     headers: { Authorization: `Bearer ${TEST_TOKEN}` },
   });
   expect(res.status).toBe(200);
-  const body = await res.json() as { webhooks: Array<{ id: string; url: string; events: string[]; created_at: string }> };
-  expect(Array.isArray(body.webhooks)).toBe(true);
-  const ids = body.webhooks.map(w => w.id);
+  const body = await res.json() as { items: Array<{ id: string; url: string; events: string[]; created_at: string }>; next_cursor: string | null };
+  expect(Array.isArray(body.items)).toBe(true);
+  expect("next_cursor" in body).toBe(true);
+  const ids = body.items.map(w => w.id);
   expect(ids).toContain("list-a");
   expect(ids).toContain("list-b");
-  for (const w of body.webhooks) {
+  for (const w of body.items) {
     expect(typeof w.url).toBe("string");
     expect(typeof w.created_at).toBe("string");
     expect(Array.isArray(w.events)).toBe(true);

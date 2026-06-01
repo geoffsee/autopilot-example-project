@@ -51,15 +51,33 @@ export function getNamedCounter(db: Database, name: string): { name: string; val
 
 export function getCountersByPrefix(
   db: Database,
-  prefix: string
+  prefix: string,
+  opts: { limit?: number; offset?: number } = {}
 ): { prefix: string; total: number; counters: { name: string; value: number }[] } {
-  const rows = db
-    .query<{ name: string; value: number }, [string, string]>(
-      "SELECT name, value FROM counters WHERE name >= ? AND name < ?"
+  const end = prefix + "\xff";
+  const { limit, offset = 0 } = opts;
+
+  const totalRow = db
+    .query<{ total: number }, [string, string]>(
+      "SELECT COALESCE(SUM(value), 0) AS total FROM counters WHERE name >= ? AND name < ?"
     )
-    .all(prefix, prefix + "\xff");
-  const total = rows.reduce((sum, r) => sum + r.value, 0);
-  return { prefix, total, counters: rows };
+    .get(prefix, end);
+  const total = totalRow?.total ?? 0;
+
+  const counters =
+    limit !== undefined
+      ? db
+          .query<{ name: string; value: number }, [string, string, number, number]>(
+            "SELECT name, value FROM counters WHERE name >= ? AND name < ? ORDER BY name ASC LIMIT ? OFFSET ?"
+          )
+          .all(prefix, end, limit, offset)
+      : db
+          .query<{ name: string; value: number }, [string, string]>(
+            "SELECT name, value FROM counters WHERE name >= ? AND name < ? ORDER BY name ASC"
+          )
+          .all(prefix, end);
+
+  return { prefix, total, counters };
 }
 
 export function resetNamedCounter(
