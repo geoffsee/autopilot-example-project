@@ -70,13 +70,18 @@ function parsePaginationParams(url: URL): { limit: number; offset: number } | Re
     offset = n;
   } else if (offsetRaw !== null) {
     const n = parseInt(offsetRaw, 10);
-    if (Number.isFinite(n) && n >= 0) offset = n;
+    if (!Number.isFinite(n) || n < 0) {
+      return Response.json({ error: "invalid offset" }, { status: 400 });
+    }
+    offset = n;
   }
   const limitRaw = parseInt(url.searchParams.get("limit") ?? "", 10);
   const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 1000) : 100;
   return { limit, offset };
 }
 
+// When count === limit we can't tell if more rows exist without a COUNT(*); callers
+// may receive one extra empty page on the last request. Acceptable tradeoff.
 function makeNextCursor(offset: number, limit: number, count: number, total?: number): string | null {
   if (count < limit) return null;
   if (total !== undefined && offset + count >= total) return null;
@@ -141,7 +146,7 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
             const result = getCountersByPrefix(db, prefix, { limit, offset });
             return tagged(Response.json({
               items: result.counters,
-              next_cursor: makeNextCursor(offset, limit, result.counters.length, result.total),
+              next_cursor: makeNextCursor(offset, limit, result.counters.length),
               prefix: result.prefix,
               total: result.total,
             }), requestId);
