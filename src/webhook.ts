@@ -171,7 +171,12 @@ export interface WebhookRow {
 }
 
 export function listWebhooks(db: Database): WebhookRow[] {
-  return listWebhooksPaginated(db);
+  const rows = db
+    .query<{ counter_name: string; url: string; created_at: string }, []>(
+      "SELECT counter_name, url, created_at FROM webhooks ORDER BY created_at ASC"
+    )
+    .all();
+  return rows.map(r => ({ id: r.counter_name, url: r.url, events: ["counter.increment"], created_at: r.created_at }));
 }
 
 export function listWebhooksPaginated(
