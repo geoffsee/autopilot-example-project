@@ -6,9 +6,12 @@ import {
   getCount,
   handleCounterPost,
   getNamedCounter,
-  incrementNamedCounterTracked,
+  incrementNamedCounterByDelta,
+  decrementNamedCounterByDelta,
   getCountersByPrefix,
   resetNamedCounter,
+  batchCounterOperations,
+  type BatchOperation,
 } from "./counter";
 import { logActivity, getRecentActivity } from "./activity";
 import { runMigrations } from "./migrate";
@@ -55,6 +58,35 @@ if (import.meta.main) {
 const db = createCounterDb();
 await runMigrations(db, join(import.meta.dir, "../migrations"));
 const rateLimiter = createRateLimiter({ db });
+
+async function parseDeltaBody(req: Request): Promise<{ delta: number } | Response> {
+  const text = await req.text();
+  if (!text.trim()) return { delta: 1 };
+  const contentType = req.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) {
+    return errorJson("Content-Type must be application/json", ErrorCode.INVALID_CONTENT_TYPE, 400);
+  }
+  let body: unknown;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    return errorJson("Invalid JSON", ErrorCode.INVALID_JSON, 400);
+  }
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    return errorJson("Body must be an object", ErrorCode.INVALID_BODY, 400);
+  }
+  const obj = body as Record<string, unknown>;
+  if (!("delta" in obj)) return { delta: 1 };
+  const d = obj.delta;
+  if (typeof d !== "number" || !Number.isInteger(d) || d < 1 || d > 1_000_000) {
+    return errorJson(
+      "delta must be a positive integer no greater than 1000000",
+      ErrorCode.INVALID_DELTA,
+      400,
+    );
+  }
+  return { delta: d };
+}
 
 type WebhookDeliveryFn = (url: string, payload: Record<string, unknown>) => Promise<void>;
 
@@ -212,6 +244,66 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
         },
       },
 
+      "/api/counter/batch": {
+        async POST(req, server) {
+          const requestId = getRequestId(req);
+          trackRequest("/api/counter/batch", "POST");
+          const authErr = rbac.requireWrite(req);
+          if (authErr) return tagged(authErr, requestId);
+
+          let body: unknown;
+          try {
+            body = await req.json();
+          } catch {
+            return tagged(errorJson("Invalid JSON", ErrorCode.INVALID_JSON, 400), requestId);
+          }
+
+          if (typeof body !== "object" || body === null || Array.isArray(body)) {
+            return tagged(errorJson("Body must be an object", ErrorCode.INVALID_BODY, 400), requestId);
+          }
+
+          const obj = body as Record<string, unknown>;
+          if (!Array.isArray(obj.operations)) {
+            return tagged(errorJson("operations must be an array", ErrorCode.INVALID_BODY, 400), requestId);
+          }
+
+          const ops = obj.operations as unknown[];
+          if (ops.length > 100) {
+            return tagged(errorJson("Batch size exceeds maximum of 100", ErrorCode.BATCH_TOO_LARGE, 400), requestId);
+          }
+
+          for (let i = 0; i < ops.length; i++) {
+            const op = ops[i];
+            if (typeof op !== "object" || op === null || Array.isArray(op)) {
+              return tagged(errorJson(`Operation at index ${i} must be an object`, ErrorCode.INVALID_BODY, 400), requestId);
+            }
+            const { name, delta } = op as Record<string, unknown>;
+            if (typeof name !== "string" || !name.trim()) {
+              return tagged(errorJson(`Operation at index ${i} has invalid name`, ErrorCode.INVALID_BODY, 400), requestId);
+            }
+            if (typeof delta !== "number" || !Number.isInteger(delta) || delta === 0 || Math.abs(delta) > 1_000_000) {
+              return tagged(errorJson(`Operation at index ${i} has invalid delta (must be a non-zero integer no greater than 1000000 in absolute value)`, ErrorCode.INVALID_DELTA, 400), requestId);
+            }
+          }
+
+          const ip = server.requestIP(req)?.address ?? "unknown";
+          const actor = rbac.resolveActor(req) ?? ip;
+          const results = batchCounterOperations(db, ops as BatchOperation[]);
+          for (const r of results) {
+            writeAuditEntry(db, actor, r.name, r.oldValue, r.value, r.delta);
+            const webhookUrl = getWebhookUrl(db, r.name);
+            if (webhookUrl) {
+              const payload = { name: r.name, value: r.value, timestamp: new Date().toISOString() };
+              enqueueWebhookDelivery(db, r.name, webhookUrl, payload);
+              processWebhookRetries(db, webhookDeliveryFn).catch(err => {
+                log.error("webhook.delivery.unhandled", { error: String(err), request_id: requestId });
+              });
+            }
+          }
+          return tagged(Response.json({ results: results.map(r => ({ name: r.name, value: r.value })) }), requestId);
+        },
+      },
+
       "/api/counter/:name": {
         GET(req) {
           const requestId = getRequestId(req);
@@ -258,9 +350,37 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
           const ip = server.requestIP(req)?.address ?? "unknown";
           const limited = rateLimiter(ip);
           if (limited) return tagged(limited, requestId);
-          const result = incrementNamedCounterTracked(db, req.params.name);
+          const parsed = await parseDeltaBody(req);
+          if (parsed instanceof Response) return tagged(parsed, requestId);
+          const result = incrementNamedCounterByDelta(db, req.params.name, parsed.delta);
           const actor = rbac.resolveActor(req) ?? ip;
-          writeAuditEntry(db, actor, req.params.name, result.oldValue, result.value);
+          writeAuditEntry(db, actor, req.params.name, result.oldValue, result.value, result.delta);
+          const webhookUrl = getWebhookUrl(db, result.name);
+          if (webhookUrl) {
+            const payload = { name: result.name, value: result.value, timestamp: new Date().toISOString() };
+            enqueueWebhookDelivery(db, result.name, webhookUrl, payload);
+            processWebhookRetries(db, webhookDeliveryFn).catch(err => {
+              log.error("webhook.delivery.unhandled", { error: String(err), request_id: requestId });
+            });
+          }
+          return tagged(Response.json({ name: result.name, value: result.value }), requestId);
+        },
+      },
+
+      "/api/counter/:name/decrement": {
+        async POST(req, server) {
+          const requestId = getRequestId(req);
+          trackRequest("/api/counter/:name/decrement", "POST");
+          const authErr = rbac.requireWrite(req);
+          if (authErr) return tagged(authErr, requestId);
+          const ip = server.requestIP(req)?.address ?? "unknown";
+          const limited = rateLimiter(ip);
+          if (limited) return tagged(limited, requestId);
+          const parsed = await parseDeltaBody(req);
+          if (parsed instanceof Response) return tagged(parsed, requestId);
+          const result = decrementNamedCounterByDelta(db, req.params.name, parsed.delta);
+          const actor = rbac.resolveActor(req) ?? ip;
+          writeAuditEntry(db, actor, req.params.name, result.oldValue, result.value, result.delta);
           const webhookUrl = getWebhookUrl(db, result.name);
           if (webhookUrl) {
             const payload = { name: result.name, value: result.value, timestamp: new Date().toISOString() };

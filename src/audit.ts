@@ -6,6 +6,7 @@ export interface AuditEntry {
   counter_name: string;
   old_value: number;
   new_value: number;
+  delta: number | null;
   timestamp: string;
 }
 
@@ -14,14 +15,15 @@ export function writeAuditEntry(
   actor: string,
   counterName: string,
   oldValue: number,
-  newValue: number
+  newValue: number,
+  delta?: number
 ): AuditEntry {
   const timestamp = new Date().toISOString();
   const row = db
-    .query<AuditEntry, [string, string, number, number, string]>(
-      "INSERT INTO _audit (actor, counter_name, old_value, new_value, timestamp) VALUES (?, ?, ?, ?, ?) RETURNING *"
+    .query<AuditEntry, [string, string, number, number, number | null, string]>(
+      "INSERT INTO _audit (actor, counter_name, old_value, new_value, delta, timestamp) VALUES (?, ?, ?, ?, ?, ?) RETURNING *"
     )
-    .get(actor, counterName, oldValue, newValue, timestamp);
+    .get(actor, counterName, oldValue, newValue, delta ?? null, timestamp);
   return row!;
 }
 
