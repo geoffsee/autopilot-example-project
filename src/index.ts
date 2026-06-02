@@ -281,13 +281,26 @@ export function createServer(port?: number, opts: { webhookDelivery?: WebhookDel
             if (typeof name !== "string" || !name.trim()) {
               return tagged(errorJson(`Operation at index ${i} has invalid name`, ErrorCode.INVALID_BODY, 400), requestId);
             }
-            if (typeof delta !== "number" || !Number.isInteger(delta) || delta === 0) {
-              return tagged(errorJson(`Operation at index ${i} has invalid delta (must be a non-zero integer)`, ErrorCode.INVALID_DELTA, 400), requestId);
+            if (typeof delta !== "number" || !Number.isInteger(delta) || delta === 0 || Math.abs(delta) > 1_000_000) {
+              return tagged(errorJson(`Operation at index ${i} has invalid delta (must be a non-zero integer no greater than 1000000 in absolute value)`, ErrorCode.INVALID_DELTA, 400), requestId);
             }
           }
 
+          const ip = server.requestIP(req)?.address ?? "unknown";
+          const actor = rbac.resolveActor(req) ?? ip;
           const results = batchCounterOperations(db, ops as BatchOperation[]);
-          return tagged(Response.json({ results }), requestId);
+          for (const r of results) {
+            writeAuditEntry(db, actor, r.name, r.oldValue, r.value, r.delta);
+            const webhookUrl = getWebhookUrl(db, r.name);
+            if (webhookUrl) {
+              const payload = { name: r.name, value: r.value, timestamp: new Date().toISOString() };
+              enqueueWebhookDelivery(db, r.name, webhookUrl, payload);
+              processWebhookRetries(db, webhookDeliveryFn).catch(err => {
+                log.error("webhook.delivery.unhandled", { error: String(err), request_id: requestId });
+              });
+            }
+          }
+          return tagged(Response.json({ results: results.map(r => ({ name: r.name, value: r.value })) }), requestId);
         },
       },
 

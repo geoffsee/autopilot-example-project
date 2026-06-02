@@ -100,16 +100,6 @@ export function incrementNamedCounter(db: Database, name: string): { name: strin
   return { name, value: row?.value ?? 0 };
 }
 
-export function incrementNamedCounterTracked(
-  db: Database,
-  name: string
-): { name: string; value: number; oldValue: number } {
-  db.run(`INSERT OR IGNORE INTO counters (name, value) VALUES (?, 0)`, [name]);
-  const row = db.query<{ value: number; old_value: number }, [string]>(
-    "UPDATE counters SET value = value + 1 WHERE name = ? RETURNING value, value - 1 AS old_value"
-  ).get(name);
-  return { name, value: row?.value ?? 0, oldValue: row?.old_value ?? 0 };
-}
 
 export function incrementNamedCounterByDelta(
   db: Database,
@@ -143,6 +133,8 @@ export interface BatchOperation {
 export interface BatchResult {
   name: string;
   value: number;
+  oldValue: number;
+  delta: number;
 }
 
 export function batchCounterOperations(
@@ -153,10 +145,10 @@ export function batchCounterOperations(
   const txn = db.transaction(() => {
     for (const op of operations) {
       db.run(`INSERT OR IGNORE INTO counters (name, value) VALUES (?, 0)`, [op.name]);
-      const row = db.query<{ value: number }, [number, string]>(
-        "UPDATE counters SET value = value + ? WHERE name = ? RETURNING value"
-      ).get(op.delta, op.name);
-      results.push({ name: op.name, value: row?.value ?? 0 });
+      const row = db.query<{ value: number; old_value: number }, [number, string, number]>(
+        "UPDATE counters SET value = value + ? WHERE name = ? RETURNING value, value - ? AS old_value"
+      ).get(op.delta, op.name, op.delta);
+      results.push({ name: op.name, value: row?.value ?? 0, oldValue: row?.old_value ?? 0, delta: op.delta });
     }
   });
   txn();
